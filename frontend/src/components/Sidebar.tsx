@@ -1,14 +1,14 @@
 import { Bookmark, Home, LogIn, LogOut, Menu, Settings, Store, User } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAppearanceStore } from '../stores/appearance'
 import { useAuthStore } from '../stores/auth'
+import { useBookmarkDrawerStore } from '../stores/bookmarkDrawer'
 import { cn } from '../utils/cn'
 
 type Props = {
   onOpenSettings: () => void
-  onOpenBookmarks: () => void
   onOpenMarket: () => void
 }
 
@@ -31,7 +31,8 @@ const IconWrapper = ({ children }: { children: React.ReactNode }) => (
   </div>
 )
 
-export function Sidebar({ onOpenSettings, onOpenBookmarks, onOpenMarket }: Props) {
+export function Sidebar({ onOpenSettings, onOpenMarket }: Props) {
+  const navigate = useNavigate()
   const expanded = useAppearanceStore((s) => s.sidebarExpanded)
   const toggle = useAppearanceStore((s) => s.toggleSidebar)
   const setSidebarExpanded = useAppearanceStore((s) => s.setSidebarExpanded)
@@ -39,6 +40,7 @@ export function Sidebar({ onOpenSettings, onOpenBookmarks, onOpenMarket }: Props
   const autoHideDelay = useAppearanceStore((s) => s.sidebarAutoHideDelay)
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
+  const openBookmarkDrawer = useBookmarkDrawerStore((s) => s.setOpen)
 
   // 自动隐藏相关状态
   const [isHidden, setIsHidden] = useState(false)
@@ -177,7 +179,15 @@ export function Sidebar({ onOpenSettings, onOpenBookmarks, onOpenMarket }: Props
         <button
           type="button"
           className={cn(itemBase, itemIdle, 'text-left')}
-          onClick={() => (expanded ? onOpenBookmarks() : setSidebarExpanded(true))}
+          onClick={() => {
+            if (expanded) {
+              navigate('/')
+              // 延迟一点打开抽屉，确保已经在首页
+              setTimeout(() => openBookmarkDrawer(true), 50)
+            } else {
+              setSidebarExpanded(true)
+            }
+          }}
           title="我的书签"
         >
           <IconWrapper>

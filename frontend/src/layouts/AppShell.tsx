@@ -4,7 +4,6 @@ import { GlobalToaster } from '../components/GlobalToaster'
 import { ServerStatus } from '../components/ServerStatus'
 import { Sidebar } from '../components/Sidebar'
 import { SettingsDialog } from '../components/SettingsDialog'
-import { BookmarksDialog } from '../components/BookmarksDialog'
 import { MarketDialog } from '../components/MarketDialog'
 import { useApplyAppearance } from '../hooks/useApplyAppearance'
 import { useBackgroundImage } from '../hooks/useBackgroundImage'
@@ -23,7 +22,6 @@ export function AppShell() {
 
   const { backgroundUrl, bingCopyright } = useBackgroundImage()
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [bookmarksOpen, setBookmarksOpen] = useState(false)
   const [marketOpen, setMarketOpen] = useState(false)
   const sidebarExpanded = useAppearanceStore((s) => s.sidebarExpanded)
   const setSidebarExpanded = useAppearanceStore((s) => s.setSidebarExpanded)
@@ -71,7 +69,6 @@ export function AppShell() {
         >
           <Sidebar
             onOpenSettings={() => setSettingsOpen(true)}
-            onOpenBookmarks={() => setBookmarksOpen(true)}
             onOpenMarket={() => setMarketOpen(true)}
           />
         </div>
@@ -92,9 +89,6 @@ export function AppShell() {
 
       {settingsOpen ? (
         <SettingsDialog open onClose={() => setSettingsOpen(false)} />
-      ) : null}
-      {bookmarksOpen ? (
-        <BookmarksDialog open onClose={() => setBookmarksOpen(false)} />
       ) : null}
       {marketOpen ? <MarketDialog open onClose={() => setMarketOpen(false)} /> : null}
       <GlobalToaster />
