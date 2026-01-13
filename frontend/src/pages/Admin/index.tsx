@@ -116,8 +116,24 @@ export function AdminPage() {
   const isAdmin = Boolean(me && (me.role === 'ADMIN' || me.role === 'ROOT'))
   const isRoot = me?.role === 'ROOT'
 
-  const [tab, setTab] = useState<'users' | 'bookmarks' | 'extensions' | 'project' | 'profile' | 'logs' | 'update'>('users')
+  // 从 URL hash 读取初始 tab
+  const getInitialTab = (): 'users' | 'bookmarks' | 'extensions' | 'project' | 'profile' | 'logs' | 'update' => {
+    const hash = location.hash.replace('#', '')
+    const validTabs = ['users', 'bookmarks', 'extensions', 'project', 'profile', 'logs', 'update']
+    if (validTabs.includes(hash)) {
+      return hash as typeof validTabs[number]
+    }
+    return 'users'
+  }
+
+  const [tab, setTabState] = useState<'users' | 'bookmarks' | 'extensions' | 'project' | 'profile' | 'logs' | 'update'>(getInitialTab)
   const [loading, setLoading] = useState(false)
+
+  // 切换 tab 时同步更新 URL hash
+  const setTab = (newTab: typeof tab) => {
+    setTabState(newTab)
+    window.history.replaceState(null, '', `#${newTab}`)
+  }
 
   // Users Tab State
   const [users, setUsers] = useState<AdminUser[]>([])

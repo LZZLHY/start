@@ -843,7 +843,7 @@ export function SettingsDialog({ open, onClose }: Props) {
                     </Button>
                   </div>
                   <div className="text-xs text-fg/60 leading-relaxed">
-                    当前版本：v1.0.0
+                    当前版本：v{__APP_VERSION__}
                   </div>
                 </Section>
               </>
