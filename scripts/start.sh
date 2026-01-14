@@ -90,8 +90,68 @@ echo ""
 echo -e "${BLUE}⚙️  步骤 2/4: 配置后端${NC}"
 echo "────────────────────────────────────────"
 
-[ ! -f "$BACKEND_DIR/env.local" ] && cp "$BACKEND_DIR/env.example" "$BACKEND_DIR/env.local"
-echo -e "${GREEN}✓ 配置文件已就绪${NC}"
+ENV_LOCAL="$BACKEND_DIR/env.local"
+ENV_EXAMPLE="$BACKEND_DIR/env.example"
+
+# 不安全的默认 JWT_SECRET 列表
+INSECURE_SECRETS="please-change-me please-change-me-to-random-string dev-secret-please-change-1234"
+
+if [ ! -f "$ENV_LOCAL" ]; then
+    cp "$ENV_EXAMPLE" "$ENV_LOCAL"
+    
+    # 生成安全的 JWT_SECRET
+    NEW_SECRET=$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c 64)
+    
+    if [ "$(uname)" = "Darwin" ]; then
+        sed -i '' "s/JWT_SECRET=\"[^\"]*\"/JWT_SECRET=\"$NEW_SECRET\"/" "$ENV_LOCAL"
+    else
+        sed -i "s/JWT_SECRET=\"[^\"]*\"/JWT_SECRET=\"$NEW_SECRET\"/" "$ENV_LOCAL"
+    fi
+    
+    echo -e "${GREEN}✓ 配置文件已创建${NC}"
+    echo -e "${GREEN}✓ 已自动生成安全的 JWT_SECRET${NC}"
+else
+    echo -e "${GREEN}✓ 配置文件已存在${NC}"
+    
+    # 检查是否使用不安全的默认值
+    CURRENT_SECRET=$(grep -oP 'JWT_SECRET="\K[^"]+' "$ENV_LOCAL" 2>/dev/null || grep -o 'JWT_SECRET="[^"]*"' "$ENV_LOCAL" | cut -d'"' -f2)
+    
+    IS_INSECURE=false
+    for secret in $INSECURE_SECRETS; do
+        if [ "$CURRENT_SECRET" = "$secret" ]; then
+            IS_INSECURE=true
+            break
+        fi
+    done
+    
+    if [ "$IS_INSECURE" = true ]; then
+        echo ""
+        echo -e "${YELLOW}════════════════════════════════════════════════════${NC}"
+        echo -e "${YELLOW}⚠️  安全警告：JWT_SECRET 使用了不安全的默认值！${NC}"
+        echo -e "${YELLOW}════════════════════════════════════════════════════${NC}"
+        echo ""
+        echo "  这意味着任何人都可以伪造登录 token，"
+        echo "  以任意用户身份（包括管理员）登录你的系统。"
+        echo ""
+        
+        read -p "  是否自动生成安全的 JWT_SECRET？(y/n): " answer
+        if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
+            NEW_SECRET=$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c 64)
+            
+            if [ "$(uname)" = "Darwin" ]; then
+                sed -i '' "s/JWT_SECRET=\"[^\"]*\"/JWT_SECRET=\"$NEW_SECRET\"/" "$ENV_LOCAL"
+            else
+                sed -i "s/JWT_SECRET=\"[^\"]*\"/JWT_SECRET=\"$NEW_SECRET\"/" "$ENV_LOCAL"
+            fi
+            
+            echo -e "${GREEN}✓ 已生成并保存新的 JWT_SECRET${NC}"
+            echo -e "${YELLOW}  注意：所有已登录用户需要重新登录${NC}"
+        else
+            echo -e "${YELLOW}⚠ 跳过 JWT_SECRET 更新，请稍后手动修改 backend/env.local${NC}"
+        fi
+        echo ""
+    fi
+fi
 
 echo ""
 

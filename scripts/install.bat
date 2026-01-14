@@ -79,7 +79,17 @@ docker compose up -d
 echo.
 echo [3/5] 配置后端...
 cd backend
-if not exist "env.local" copy env.example env.local
+if not exist "env.local" (
+    copy env.example env.local
+    
+    :: 生成随机 JWT_SECRET（使用 PowerShell）
+    for /f "delims=" %%i in ('powershell -Command "[Convert]::ToBase64String((1..48|%%{Get-Random -Max 256})-as[byte[]]) -replace '[^A-Za-z0-9]','' | Select-Object -First 1"') do set NEW_SECRET=%%i
+    
+    :: 替换 JWT_SECRET（使用 PowerShell）
+    powershell -Command "(Get-Content env.local) -replace 'JWT_SECRET=\"[^\"]*\"', 'JWT_SECRET=\"%NEW_SECRET%\"' | Set-Content env.local"
+    
+    echo [√] 已自动生成安全的 JWT_SECRET
+)
 call npm install
 
 echo.

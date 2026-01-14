@@ -56,25 +56,41 @@ export function SortModeSelector({ value, onChange, disabled, locked, className 
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 z-50 min-w-[160px] py-1 rounded-lg bg-glass/90 backdrop-blur-xl border border-glass-border/30 shadow-xl">
-          {SORT_MODE_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => {
-                onChange(opt.value)
-                setOpen(false)
-              }}
-              className={cn(
-                'w-full flex items-center gap-2 px-3 py-2 text-sm text-left',
-                'hover:bg-glass/30 transition-colors',
-                opt.value === value && 'bg-primary/10 text-primary',
-              )}
-            >
-              {opt.icon}
-              <span>{opt.label}</span>
-            </button>
-          ))}
+        <div 
+          className={cn(
+            'absolute top-full left-0 mt-2 z-50 w-full min-w-[160px]',
+            'rounded-2xl border border-glass-border/20 backdrop-blur-xl shadow-glass',
+            'bg-glass/75 overflow-hidden',
+            'animate-in fade-in-0 slide-in-from-top-2 duration-200',
+          )}
+        >
+          <div className="py-2 px-2 space-y-1">
+            {SORT_MODE_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  onChange(opt.value)
+                  setOpen(false)
+                }}
+                className={cn(
+                  'w-full flex items-center gap-2 px-3 py-2 text-sm text-left',
+                  'rounded-xl border transition-all duration-150',
+                  opt.value === value
+                    ? 'bg-primary/20 border-primary/30 text-primary'
+                    : 'border-transparent text-fg/80 hover:bg-primary/10 hover:border-primary/20 hover:text-fg',
+                )}
+              >
+                <span className={cn(
+                  'transition-colors',
+                  opt.value === value ? 'text-primary' : 'text-fg/40',
+                )}>
+                  {opt.icon}
+                </span>
+                <span>{opt.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

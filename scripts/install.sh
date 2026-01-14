@@ -181,7 +181,26 @@ clone_project() {
 setup_backend() {
     echo -e "${YELLOW}配置后端...${NC}"
     cd "$INSTALL_DIR/backend"
-    [ ! -f "env.local" ] && cp env.example env.local
+    
+    if [ ! -f "env.local" ]; then
+        # 复制示例配置
+        cp env.example env.local
+        
+        # 生成安全的 JWT_SECRET（64 字符随机字符串）
+        NEW_SECRET=$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c 64)
+        
+        # 替换默认的 JWT_SECRET
+        if [ "$(uname)" = "Darwin" ]; then
+            # macOS
+            sed -i '' "s/JWT_SECRET=\"[^\"]*\"/JWT_SECRET=\"$NEW_SECRET\"/" env.local
+        else
+            # Linux
+            sed -i "s/JWT_SECRET=\"[^\"]*\"/JWT_SECRET=\"$NEW_SECRET\"/" env.local
+        fi
+        
+        echo -e "${GREEN}✓ 已自动生成安全的 JWT_SECRET${NC}"
+    fi
+    
     [ ! -d "node_modules" ] && npm install
     echo -e "${GREEN}✓ 后端配置完成${NC}"
 }

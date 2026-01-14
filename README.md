@@ -213,9 +213,31 @@ server {
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | DATABASE_URL | PostgreSQL 连接串 | postgresql://start:start@localhost:5432/start |
-| JWT_SECRET | JWT 密钥 | 请修改 |
+| JWT_SECRET | JWT 签名密钥 | 自动生成 |
 | PORT | 后端端口 | 3100 |
-| HOST | 绑定地址 | 0.0.0.0 |
+| HOST | 绑定地址 | 自动检测 |
+
+### 🔐 安全配置
+
+#### JWT_SECRET
+
+JWT_SECRET 用于用户登录 token 的签名和验证，是系统安全的关键。
+
+- **新安装**：安装脚本会自动生成 64 字符的随机密钥
+- **已有安装**：启动时会检测是否使用默认值，并提示更新
+- **生产环境**：如果使用默认值，服务器会拒绝启动
+
+**手动生成密钥：**
+
+```bash
+# Linux/Mac
+openssl rand -base64 32
+
+# PowerShell
+[Convert]::ToBase64String((1..32|%{Get-Random -Max 256})-as[byte[]])
+```
+
+> ⚠️ 修改 JWT_SECRET 后，所有已登录用户需要重新登录
 
 ---
 

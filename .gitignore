@@ -59,5 +59,8 @@ backend/storage/user-settings/*.json
 # Process ID files
 .start/
 
+# Developer notes (not for GitHub)
+DEVLOG.md
+
 # Word temp files
 ~$*.docx
