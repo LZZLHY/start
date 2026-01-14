@@ -24,6 +24,9 @@ backend/env.local
 *.swo
 *~
 
+# Kiro
+.kiro/
+
 # OS
 .DS_Store
 Thumbs.db
