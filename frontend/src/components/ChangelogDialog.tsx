@@ -130,9 +130,9 @@ export function ChangelogDialog({ open, onClose }: Props) {
                   {entry.changes.map((change, i) => (
                     <li
                       key={i}
-                      className="flex items-start gap-2 text-sm text-fg/80"
+                      className="flex items-baseline gap-2 text-sm text-fg/80"
                     >
-                      <span className="text-primary mt-1.5 shrink-0">•</span>
+                      <span className="text-primary shrink-0">•</span>
                       <span>{change}</span>
                     </li>
                   ))}
