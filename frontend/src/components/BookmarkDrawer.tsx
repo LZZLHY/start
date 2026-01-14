@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { apiFetch } from '../services/api'
 import { useAuthStore } from '../stores/auth'
@@ -95,6 +96,7 @@ function DraggableBookmarkItem(props: {
 }
 
 export function BookmarkDrawer({ open, onClose }: BookmarkDrawerProps) {
+  const navigate = useNavigate()
   const token = useAuthStore((s) => s.token)
   const user = useAuthStore((s) => s.user)
   
@@ -172,6 +174,9 @@ export function BookmarkDrawer({ open, onClose }: BookmarkDrawerProps) {
   const [createUrl, setCreateUrl] = useState('')
   const [createNote, setCreateNote] = useState('')
   const [createNameSource, setCreateNameSource] = useState<'user' | 'auto' | 'none'>('none')
+
+  // 登录提示模态框
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false)
 
   const [faviconOk, setFaviconOk] = useState<Record<string, boolean>>({})
 
@@ -629,6 +634,10 @@ export function BookmarkDrawer({ open, onClose }: BookmarkDrawerProps) {
                 type="button"
                 className={cn('select-none cursor-pointer outline-none focus:outline-none focus:ring-0')}
                 onClick={() => {
+                  if (!user) {
+                    setLoginPromptOpen(true)
+                    return
+                  }
                   setCreateParentId(activeFolderId)
                   setCreateType('LINK')
                   setCreateOpen(true)
@@ -1037,6 +1046,23 @@ export function BookmarkDrawer({ open, onClose }: BookmarkDrawerProps) {
                   toast.error(resp.message);
                 }
               }}>保存</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 登录提示模态框 */}
+      {loginPromptOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setLoginPromptOpen(false)} />
+          <div className="relative w-full max-w-sm glass-modal rounded-[var(--start-radius)] p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="font-semibold text-lg">需要登录</h3>
+            <p className="text-sm text-fg/70">
+              登录后即可添加和管理书签，数据将自动同步到云端。
+            </p>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="ghost" onClick={() => setLoginPromptOpen(false)}>取消</Button>
+              <Button variant="primary" onClick={() => { setLoginPromptOpen(false); onClose(); navigate('/login'); }}>去登录</Button>
             </div>
           </div>
         </div>

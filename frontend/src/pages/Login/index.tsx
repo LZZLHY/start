@@ -68,9 +68,6 @@ export function LoginPage() {
     <div className="w-full max-w-md">
       <div className="glass-modal rounded-2xl p-6 sm:p-8 text-left animate-in fade-in zoom-in-95 duration-200">
         <div className="text-xl font-semibold text-fg">登录</div>
-        <div className="mt-2 text-sm text-fg/75 leading-relaxed">
-          支持使用 <b>账号 / 邮箱 / 手机号</b> 任一方式登录。
-        </div>
 
         <div className="mt-6 space-y-3">
           <div className="space-y-2">
@@ -78,7 +75,7 @@ export function LoginPage() {
             <Input
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="例如：admin / 13800000000 / you@example.com"
+              placeholder="请输入账号"
               autoComplete="username"
             />
           </div>

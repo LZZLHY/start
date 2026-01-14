@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { X, History } from 'lucide-react'
+import { X, History, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   useAppearanceStore,
@@ -121,13 +121,29 @@ export function SettingsDialog({ open, onClose }: Props) {
 
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
-  const updateNickname = useAuthStore((s) => s.updateNickname)
+  const updateProfile = useAuthStore((s) => s.updateProfile)
+  const changePassword = useAuthStore((s) => s.changePassword)
 
   const [accentInput, setAccentInput] = useState(() => accent)
   const [bgUrlInput, setBgUrlInput] = useState(() => backgroundCustomUrl)
   const [nicknameInput, setNicknameInput] = useState(() => user?.nickname ?? '')
   const [customSearchUrlInput, setCustomSearchUrlInput] = useState(() => customSearchUrl)
   const [tab, setTab] = useState<'appearance' | 'clock' | 'desktop' | 'search' | 'account'>('appearance')
+
+  // 账号设置表单状态
+  const [usernameInput, setUsernameInput] = useState(() => user?.username ?? '')
+  const [emailInput, setEmailInput] = useState(() => user?.email || '')
+  const [phoneInput, setPhoneInput] = useState(() => user?.phone || '')
+  const [profileLoading, setProfileLoading] = useState(false)
+
+  // 密码修改表单状态
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false)
+  const [showNewPwd, setShowNewPwd] = useState(false)
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false)
   const [changelogOpen, setChangelogOpen] = useState(false)
 
   useEffect(() => {
@@ -142,7 +158,14 @@ export function SettingsDialog({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) return
     setNicknameInput(user?.nickname ?? '')
-  }, [open, user?.nickname])
+    setUsernameInput(user?.username ?? '')
+    setEmailInput(user?.email || '')
+    setPhoneInput(user?.phone || '')
+    // 重置密码表单
+    setCurrentPassword('')
+    setNewPassword('')
+    setConfirmPassword('')
+  }, [open, user?.nickname, user?.username, user?.email, user?.phone])
 
   useEffect(() => {
     if (!open) return
@@ -154,6 +177,58 @@ export function SettingsDialog({ open, onClose }: Props) {
     if (isValidHex(accentInput)) return '看起来没问题'
     return '格式不对，应该是 #RRGGBB 或 #RGB'
   }, [accentInput])
+
+  // 账号设置验证
+  const usernameValid = usernameInput.trim().length >= 3 && usernameInput.trim().length <= 32
+  const nicknameValid = nicknameInput.trim().length >= 2 && nicknameInput.trim().length <= 32
+  const emailValid = !emailInput.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput.trim())
+  const phoneValid = !phoneInput.trim() || (phoneInput.trim().length >= 6 && phoneInput.trim().length <= 32)
+  const profileValid = usernameValid && nicknameValid && emailValid && phoneValid
+
+  // 密码验证
+  const newPasswordValid = newPassword.length >= 6 && newPassword.length <= 200
+  const confirmPasswordValid = newPassword === confirmPassword
+  const passwordFormValid = currentPassword.length > 0 && newPasswordValid && confirmPasswordValid
+
+  // 保存资料
+  const handleSaveProfile = async () => {
+    if (!profileValid || !user) return
+    setProfileLoading(true)
+    try {
+      const result = await updateProfile({
+        username: usernameInput.trim(),
+        nickname: nicknameInput.trim(),
+        email: emailInput.trim() || null,
+        phone: phoneInput.trim() || null,
+      })
+      if (result.ok) {
+        toast.success('资料已更新')
+      } else {
+        toast.error(result.message)
+      }
+    } finally {
+      setProfileLoading(false)
+    }
+  }
+
+  // 修改密码
+  const handleChangePassword = async () => {
+    if (!passwordFormValid || !user) return
+    setPasswordLoading(true)
+    try {
+      const result = await changePassword(currentPassword, newPassword)
+      if (result.ok) {
+        toast.success('密码已修改')
+        setCurrentPassword('')
+        setNewPassword('')
+        setConfirmPassword('')
+      } else {
+        toast.error(result.message)
+      }
+    } finally {
+      setPasswordLoading(false)
+    }
+  }
 
   if (!open) return null
 
@@ -766,35 +841,153 @@ export function SettingsDialog({ open, onClose }: Props) {
                   )}
                 </Section>
 
-                <Section title="昵称（唯一）">
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={nicknameInput}
-                      onChange={(e) => setNicknameInput(e.target.value)}
-                      placeholder="输入新昵称"
-                      disabled={!user}
-                    />
-                    <Button
-                      variant="primary"
-                      disabled={!user || !nicknameInput.trim()}
-                      onClick={async () => {
-                        const v = nicknameInput.trim()
-                        if (!v) return
-                        const resp = await updateNickname(v)
-                        if (!resp.ok) {
-                          toast.error(resp.message)
-                          return
-                        }
-                        toast.success('昵称已更新')
-                      }}
-                    >
-                      保存
-                    </Button>
-                  </div>
-                  <div className="text-xs text-fg/60">
-                    说明：昵称全局唯一，重复会提示占用。
-                  </div>
-                </Section>
+                {user && (
+                  <>
+                    <Section title="个人资料">
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <div className="text-xs text-fg/60">账号名称</div>
+                          <Input
+                            value={usernameInput}
+                            onChange={(e) => setUsernameInput(e.target.value)}
+                            placeholder="3-32个字符"
+                            className={cn(!usernameValid && usernameInput && 'border-red-500/50')}
+                          />
+                          {!usernameValid && usernameInput && (
+                            <p className="text-xs text-red-400">账号名称需要3-32个字符</p>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="text-xs text-fg/60">昵称（唯一）</div>
+                          <Input
+                            value={nicknameInput}
+                            onChange={(e) => setNicknameInput(e.target.value)}
+                            placeholder="2-32个字符"
+                            className={cn(!nicknameValid && nicknameInput && 'border-red-500/50')}
+                          />
+                          {!nicknameValid && nicknameInput && (
+                            <p className="text-xs text-red-400">昵称需要2-32个字符</p>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="text-xs text-fg/60">邮箱（可选）</div>
+                          <Input
+                            type="email"
+                            value={emailInput}
+                            onChange={(e) => setEmailInput(e.target.value)}
+                            placeholder="example@email.com"
+                            className={cn(!emailValid && emailInput && 'border-red-500/50')}
+                          />
+                          {!emailValid && emailInput && (
+                            <p className="text-xs text-red-400">请输入有效的邮箱地址</p>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="text-xs text-fg/60">手机号（可选）</div>
+                          <Input
+                            value={phoneInput}
+                            onChange={(e) => setPhoneInput(e.target.value)}
+                            placeholder="6-32个字符"
+                            className={cn(!phoneValid && phoneInput && 'border-red-500/50')}
+                          />
+                          {!phoneValid && phoneInput && (
+                            <p className="text-xs text-red-400">手机号需要6-32个字符</p>
+                          )}
+                        </div>
+
+                        <Button
+                          variant="primary"
+                          onClick={handleSaveProfile}
+                          disabled={!profileValid || profileLoading}
+                          className="w-full"
+                        >
+                          {profileLoading ? '保存中...' : '保存资料'}
+                        </Button>
+                      </div>
+                    </Section>
+
+                    <Section title="修改密码">
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <div className="text-xs text-fg/60">当前密码</div>
+                          <div className="relative">
+                            <Input
+                              type={showCurrentPwd ? 'text' : 'password'}
+                              value={currentPassword}
+                              onChange={(e) => setCurrentPassword(e.target.value)}
+                              placeholder="请输入当前密码"
+                            />
+                            <button
+                              type="button"
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-fg/40 hover:text-fg/60 transition-colors"
+                              onClick={() => setShowCurrentPwd(!showCurrentPwd)}
+                            >
+                              {showCurrentPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="text-xs text-fg/60">新密码</div>
+                          <div className="relative">
+                            <Input
+                              type={showNewPwd ? 'text' : 'password'}
+                              value={newPassword}
+                              onChange={(e) => setNewPassword(e.target.value)}
+                              placeholder="6-200个字符"
+                              className={cn(!newPasswordValid && newPassword && 'border-red-500/50')}
+                            />
+                            <button
+                              type="button"
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-fg/40 hover:text-fg/60 transition-colors"
+                              onClick={() => setShowNewPwd(!showNewPwd)}
+                            >
+                              {showNewPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                          {!newPasswordValid && newPassword && (
+                            <p className="text-xs text-red-400">密码需要6-200个字符</p>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="text-xs text-fg/60">确认新密码</div>
+                          <div className="relative">
+                            <Input
+                              type={showConfirmPwd ? 'text' : 'password'}
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              placeholder="再次输入新密码"
+                              className={cn(!confirmPasswordValid && confirmPassword && 'border-red-500/50')}
+                            />
+                            <button
+                              type="button"
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-fg/40 hover:text-fg/60 transition-colors"
+                              onClick={() => setShowConfirmPwd(!showConfirmPwd)}
+                            >
+                              {showConfirmPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                          {!confirmPasswordValid && confirmPassword && (
+                            <p className="text-xs text-red-400">两次输入的密码不一致</p>
+                          )}
+                        </div>
+
+                        <Button
+                          variant="primary"
+                          onClick={handleChangePassword}
+                          disabled={!passwordFormValid || passwordLoading}
+                          className="w-full"
+                        >
+                          {passwordLoading ? '修改中...' : '修改密码'}
+                        </Button>
+                      </div>
+                    </Section>
+                  </>
+                )}
 
                 <Section title="退出登录">
                   <Button

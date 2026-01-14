@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { apiFetch } from '../services/api'
+import { useAppearanceStore } from './appearance'
+import { useBookmarkDndStore } from './bookmarkDnd'
 
 export type User = {
   id: string
@@ -29,6 +31,13 @@ type AuthState = {
   }) => Promise<{ ok: true } | { ok: false; message: string }>
   refreshMe: () => Promise<void>
   updateNickname: (nickname: string) => Promise<{ ok: true } | { ok: false; message: string }>
+  updateProfile: (data: {
+    username?: string
+    nickname?: string
+    email?: string | null
+    phone?: string | null
+  }) => Promise<{ ok: true } | { ok: false; message: string }>
+  changePassword: (currentPassword: string, newPassword: string) => Promise<{ ok: true } | { ok: false; message: string }>
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -38,7 +47,12 @@ export const useAuthStore = create<AuthState>()(
       user: null,
 
       setAuth: (token, user) => set({ token, user }),
-      logout: () => set({ token: '', user: null }),
+      logout: () => {
+        // 重置所有用户相关设置为默认值
+        useAppearanceStore.getState().resetAppearance()
+        useBookmarkDndStore.getState().resetBookmarkDnd()
+        set({ token: '', user: null })
+      },
 
       login: async (identifier, password) => {
         const resp = await apiFetch<{ token: string; user: User }>('/api/auth/login', {
@@ -81,6 +95,31 @@ export const useAuthStore = create<AuthState>()(
         })
         if (!resp.ok) return { ok: false, message: resp.message }
         set({ user: resp.data.user })
+        return { ok: true }
+      },
+
+      updateProfile: async (data) => {
+        const token = get().token
+        if (!token) return { ok: false, message: '未登录' }
+        const resp = await apiFetch<{ user: User }>('/api/users/me/profile', {
+          method: 'PATCH',
+          token,
+          body: JSON.stringify(data),
+        })
+        if (!resp.ok) return { ok: false, message: resp.message }
+        set({ user: resp.data.user })
+        return { ok: true }
+      },
+
+      changePassword: async (currentPassword, newPassword) => {
+        const token = get().token
+        if (!token) return { ok: false, message: '未登录' }
+        const resp = await apiFetch<{ message: string }>('/api/users/me/password', {
+          method: 'PATCH',
+          token,
+          body: JSON.stringify({ currentPassword, newPassword }),
+        })
+        if (!resp.ok) return { ok: false, message: resp.message }
         return { ok: true }
       },
     }),

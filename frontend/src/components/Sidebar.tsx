@@ -209,20 +209,22 @@ export function Sidebar({ onOpenSettings, onOpenMarket }: Props) {
         </button>
 
         {user ? (
-          <button
-            type="button"
-            className={cn(itemBase, itemIdle, 'text-left')}
-            onClick={() => {
-              logout()
-              toast.info('已退出登录')
-            }}
-            title="退出登录"
-          >
-            <IconWrapper>
-              <LogOut className="h-5 w-5" />
-            </IconWrapper>
-            <SidebarLabel expanded={expanded}>退出登录</SidebarLabel>
-          </button>
+          <>
+            <button
+              type="button"
+              className={cn(itemBase, itemIdle, 'text-left')}
+              onClick={() => {
+                logout()
+                toast.info('已退出登录')
+              }}
+              title="退出登录"
+            >
+              <IconWrapper>
+                <LogOut className="h-5 w-5" />
+              </IconWrapper>
+              <SidebarLabel expanded={expanded}>退出登录</SidebarLabel>
+            </button>
+          </>
         ) : (
           <NavLink
             to="/login"

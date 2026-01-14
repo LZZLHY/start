@@ -16,9 +16,6 @@ const bookmarkItemArb = fc.record({
   type: fc.constantFrom('LINK' as const, 'FOLDER' as const),
 })
 
-// 生成书签列表的 Arbitrary
-const bookmarkListArb = fc.array(bookmarkItemArb, { minLength: 0, maxLength: 20 })
-
 // 生成唯一 ID 的书签列表
 const uniqueBookmarkListArb = fc.array(bookmarkItemArb, { minLength: 0, maxLength: 20 }).map(items => {
   const seen = new Set<string>()

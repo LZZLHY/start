@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import * as fc from 'fast-check'
 import { storageKey, getOrder, saveOrder } from './orderStorage'
-import type { BookmarkContext } from '../../types/bookmark'
 
 // Mock localStorage
 const localStorageMock = (() => {

@@ -22,7 +22,7 @@ const localStorageMock = (() => {
   }
 })()
 
-Object.defineProperty(global, 'localStorage', { value: localStorageMock })
+Object.defineProperty(window, 'localStorage', { value: localStorageMock })
 
 describe('shortcutStorage', () => {
   beforeEach(() => {

@@ -4,17 +4,6 @@ import { shortcutMatcherUtils, type Bookmark } from './useShortcutMatcher'
 
 const { matchBookmarks, getFaviconUrl } = shortcutMatcherUtils
 
-// 生成有效书签的 arbitrary
-const bookmarkArb = fc.record({
-  id: fc.uuid(),
-  name: fc.string({ minLength: 1, maxLength: 100 }),
-  url: fc.webUrl(),
-  type: fc.constant('LINK' as const),
-})
-
-// 生成书签列表的 arbitrary
-const bookmarksArb = fc.array(bookmarkArb, { minLength: 0, maxLength: 50 })
-
 describe('useShortcutMatcher', () => {
   describe('getFaviconUrl', () => {
     it('should generate correct favicon URL', () => {

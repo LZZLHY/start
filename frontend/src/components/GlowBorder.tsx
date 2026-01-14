@@ -14,7 +14,6 @@ type Props = {
  */
 export function GlowBorder({ isActive, width, height, radius }: Props) {
   const pathRef = useRef<SVGRectElement>(null)
-  const glowPathRef = useRef<SVGRectElement>(null)
   const [pathLength, setPathLength] = useState(0)
   const [dashOffset, setDashOffset] = useState(0)
   const animationRef = useRef<number>(0)

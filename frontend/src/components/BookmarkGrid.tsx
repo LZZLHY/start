@@ -143,6 +143,9 @@ export function BookmarkGrid() {
   const [createNote, setCreateNote] = useState('')
   const [createNameSource, setCreateNameSource] = useState<'user' | 'auto' | 'none'>('none')
 
+  // 登录提示模态框
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false)
+
   const [faviconOk, setFaviconOk] = useState<Record<string, boolean>>({})
 
   // --- Title Fetch ---
@@ -541,13 +544,50 @@ export function BookmarkGrid() {
     )
   }
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/login')
-    }
-  }, [user, navigate])
+  // 未登录用户显示空状态，不强制跳转
+  if (!user) {
+    return (
+      <div className="w-[min(720px,100%)] relative">
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3 justify-items-center">
+              {/* 添加按钮 */}
+              <button
+                type="button"
+                className={cn('select-none cursor-pointer outline-none focus:outline-none focus:ring-0')}
+                onClick={() => setLoginPromptOpen(true)}
+              >
+                <div className="grid place-items-center">
+                  <div className="h-12 w-12 rounded-[var(--start-radius)] grid place-items-center bg-white/60 text-fg/80 transition-all duration-300 hover:bg-white/80">
+                    <span className="text-2xl leading-none">+</span>
+                  </div>
+                  <div className="mt-1.5 text-[11px] text-fg/70 truncate w-16 text-center">添加</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
 
-  if (!user) return null
+        {/* 登录提示模态框 */}
+        {loginPromptOpen && createPortal(
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-6">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setLoginPromptOpen(false)} />
+            <div className="relative w-full max-w-sm glass-modal rounded-[var(--start-radius)] p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+              <h3 className="font-semibold text-lg">需要登录</h3>
+              <p className="text-sm text-fg/70">
+                登录后即可添加和管理书签，数据将自动同步到云端。
+              </p>
+              <div className="flex justify-end gap-2 mt-4">
+                <Button variant="ghost" onClick={() => setLoginPromptOpen(false)}>取消</Button>
+                <Button variant="primary" onClick={() => { setLoginPromptOpen(false); navigate('/login'); }}>去登录</Button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="w-[min(720px,100%)] relative">
@@ -601,6 +641,10 @@ export function BookmarkGrid() {
                   type="button"
                   className={cn('select-none cursor-pointer outline-none focus:outline-none focus:ring-0')}
                   onClick={() => {
+                    if (!user) {
+                      setLoginPromptOpen(true)
+                      return
+                    }
                     setCreateParentId(activeFolderId)
                     setCreateType('LINK')
                     setCreateOpen(true)
@@ -959,6 +1003,24 @@ export function BookmarkGrid() {
            </div>
          </div>,
          document.body
+      )}
+
+      {/* 登录提示模态框 */}
+      {loginPromptOpen && createPortal(
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setLoginPromptOpen(false)} />
+          <div className="relative w-full max-w-sm glass-modal rounded-[var(--start-radius)] p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="font-semibold text-lg">需要登录</h3>
+            <p className="text-sm text-fg/70">
+              登录后即可添加和管理书签，数据将自动同步到云端。
+            </p>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="ghost" onClick={() => setLoginPromptOpen(false)}>取消</Button>
+              <Button variant="primary" onClick={() => { setLoginPromptOpen(false); navigate('/login'); }}>去登录</Button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
     </div>

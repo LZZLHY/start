@@ -3,21 +3,21 @@ import { z } from 'zod'
 import { prisma } from '../prisma'
 import { hashPassword, signToken, verifyPassword } from '../services/auth'
 import { ok, fail } from '../utils/http'
-import { generateUniqueNickname } from '../utils/nickname'
+import { generateUniqueNickname, generateUniqueUsername } from '../utils/nickname'
 import type { AuthedRequest } from '../types/auth'
 import { audit, AuditAction } from '../services/auditLogger'
 
 const RegisterSchema = z
   .object({
-    username: z.string().trim().min(3).max(32),
+    username: z.string().trim().min(3).max(32).optional(),
     password: z.string().min(6).max(200),
     email: z.string().trim().email().optional(),
     phone: z.string().trim().min(6).max(32).optional(),
     nickname: z.string().trim().min(2).max(32).optional(),
   })
-  .refine((v) => Boolean(v.email) || Boolean(v.phone), {
-    message: '注册时必须填写邮箱或手机号（至少一个）',
-    path: ['email'],
+  .refine((v) => Boolean(v.username) || Boolean(v.email) || Boolean(v.phone), {
+    message: '账号、邮箱、手机号至少填写一个',
+    path: ['username'],
   })
 
 const LoginSchema = z.object({
@@ -29,7 +29,8 @@ export async function register(req: Request, res: Response) {
   const parsed = RegisterSchema.safeParse(req.body)
   if (!parsed.success) return fail(res, 400, parsed.error.issues[0]?.message ?? '参数错误')
 
-  const { username, password, email, phone } = parsed.data
+  const { password, email, phone } = parsed.data
+  const username = parsed.data.username?.trim() || (await generateUniqueUsername())
   const nickname = parsed.data.nickname?.trim() || (await generateUniqueNickname())
 
   try {

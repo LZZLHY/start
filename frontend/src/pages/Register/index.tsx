@@ -16,10 +16,13 @@ export function RegisterPage() {
   const [nickname, setNickname] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const contactOk = useMemo(() => Boolean(email.trim()) || Boolean(phone.trim()), [email, phone])
+  const identifierOk = useMemo(
+    () => Boolean(username.trim()) || Boolean(email.trim()) || Boolean(phone.trim()),
+    [username, email, phone],
+  )
   const disabled = useMemo(
-    () => loading || !username.trim() || !password || !contactOk,
-    [contactOk, loading, password, username],
+    () => loading || !password || !identifierOk,
+    [loading, password, identifierOk],
   )
 
   const onSubmit = async () => {
@@ -27,7 +30,7 @@ export function RegisterPage() {
     setLoading(true)
     try {
       const resp = await register({
-        username: username.trim(),
+        username: username.trim() || 'user_' + Date.now(),
         password,
         email: email.trim() || undefined,
         phone: phone.trim() || undefined,
@@ -48,17 +51,14 @@ export function RegisterPage() {
     <div className="w-full max-w-md">
       <div className="glass-modal rounded-2xl p-6 sm:p-8 text-left animate-in fade-in zoom-in-95 duration-200">
         <div className="text-xl font-semibold text-fg">注册</div>
-        <div className="mt-2 text-sm text-fg/75 leading-relaxed">
-          邮箱/手机号至少填写一个。昵称可选（不填会自动生成且全局唯一）。
-        </div>
 
         <div className="mt-6 space-y-3">
           <div className="space-y-2">
-            <div className="text-sm text-fg/80">账号</div>
+            <div className="text-sm text-fg/80">账号（选填）</div>
             <Input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="自定义账号（例如：dhao1）"
+              placeholder="请输入账号"
               autoComplete="username"
             />
           </div>
@@ -68,7 +68,7 @@ export function RegisterPage() {
             <Input
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="至少 6 位"
+              placeholder="请输入密码"
               type="password"
               autoComplete="new-password"
             />
@@ -80,7 +80,7 @@ export function RegisterPage() {
               <Input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder="请输入邮箱"
                 type="email"
                 autoComplete="email"
               />
@@ -90,7 +90,7 @@ export function RegisterPage() {
               <Input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="13800000000"
+                placeholder="请输入手机号"
                 autoComplete="tel"
               />
             </div>
@@ -101,15 +101,15 @@ export function RegisterPage() {
             <Input
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder="不填则随机生成（可注册后在设置中修改）"
+              placeholder="请输入昵称"
               autoComplete="nickname"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') onSubmit()
               }}
             />
-            {!contactOk ? (
-              <div className="text-xs text-red-200">邮箱/手机号至少填一个</div>
-            ) : null}
+            {!identifierOk && (
+              <div className="text-xs text-red-200">账号/邮箱/手机号至少填一个</div>
+            )}
           </div>
         </div>
 
