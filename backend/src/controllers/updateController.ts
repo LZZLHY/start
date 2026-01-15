@@ -297,12 +297,23 @@ router.get('/check', requireAuth, requireRoot, async (_req: AuthedRequest, res: 
     let frontendOnly = false
     
     if (hasUpdate) {
-      // 通过 GitHub API 分析变更文件
-      const changes = await getChangedFiles(currentInfo.version, latest)
-      needsDeps = changes.needsDeps
-      needsRestart = changes.needsRestart
-      needsMigration = changes.needsMigration
-      frontendOnly = changes.frontendOnly
+      // 如果是同一大版本的补丁更新，无法通过 Compare API 获取差异
+      // 因为 tag 相同，所以使用保守策略：默认需要重启
+      if (versionCompare === 0 && latestPatch > currentInfo.patch) {
+        // 补丁更新：保守策略，默认需要重启
+        needsRestart = true
+        logger.info('补丁更新检测，使用保守策略', { 
+          currentPatch: currentInfo.patch, 
+          latestPatch 
+        })
+      } else {
+        // 大版本更新：通过 GitHub API 分析变更文件
+        const changes = await getChangedFiles(currentInfo.version, latest)
+        needsDeps = changes.needsDeps
+        needsRestart = changes.needsRestart
+        needsMigration = changes.needsMigration
+        frontendOnly = changes.frontendOnly
+      }
     }
     
     const info: VersionInfo = {
