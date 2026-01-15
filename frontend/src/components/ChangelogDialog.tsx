@@ -14,6 +14,7 @@ type Props = {
 
 interface VersionEntry {
   version: string
+  patch?: number
   date: string
   changes: string[]
 }
@@ -111,7 +112,7 @@ export function ChangelogDialog({ open, onClose }: Props) {
                       'font-semibold',
                       idx === 0 ? 'text-primary' : 'text-fg/90',
                     )}>
-                      v{entry.version}
+                      v{entry.version}{entry.patch ? ` (#${entry.patch})` : ''}
                     </span>
                     {idx === 0 && (
                       <span className="px-1.5 py-0.5 text-[10px] bg-primary/20 text-primary rounded">

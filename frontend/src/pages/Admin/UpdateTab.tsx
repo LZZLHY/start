@@ -27,7 +27,9 @@ import { cn } from '../../utils/cn'
 
 interface VersionInfo {
   current: string
+  currentPatch: number
   latest: string
+  latestPatch: number
   hasUpdate: boolean
   releaseNotes: string
   releaseDate: string
@@ -146,7 +148,8 @@ export function UpdateTab() {
       }
       setVersionInfo(resp.data)
       if (resp.data.hasUpdate) {
-        toast.success(`发现新版本 v${resp.data.latest}`)
+        const patchInfo = resp.data.latestPatch ? ` (${resp.data.latestPatch})` : ''
+        toast.success(`发现新版本 v${resp.data.latest}${patchInfo}`)
       } else if (!silent) {
         toast.success('已是最新版本')
       }
@@ -472,11 +475,11 @@ export function UpdateTab() {
               {versionInfo?.hasUpdate ? '有新版本可用' : '已是最新版本'}
             </div>
             <div className="text-sm text-fg/60">
-              当前版本: <code className="px-1.5 py-0.5 bg-glass/10 rounded">v{versionInfo?.current || '未知'}</code>
+              当前版本: <code className="px-1.5 py-0.5 bg-glass/10 rounded">v{versionInfo?.current || '未知'}{versionInfo?.currentPatch ? ` (${versionInfo.currentPatch})` : ''}</code>
               {versionInfo?.hasUpdate && (
                 <>
                   {' → '}
-                  <code className="px-1.5 py-0.5 bg-primary/10 text-primary rounded">v{versionInfo.latest}</code>
+                  <code className="px-1.5 py-0.5 bg-primary/10 text-primary rounded">v{versionInfo.latest}{versionInfo.latestPatch ? ` (${versionInfo.latestPatch})` : ''}</code>
                 </>
               )}
             </div>

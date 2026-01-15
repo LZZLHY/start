@@ -36,7 +36,9 @@ const GITHUB_REPO = 'start'
 // 版本信息接口
 interface VersionInfo {
   current: string
+  currentPatch: number
   latest: string
+  latestPatch: number
   hasUpdate: boolean
   releaseNotes: string
   releaseDate: string
@@ -50,13 +52,16 @@ interface VersionInfo {
 /**
  * 获取当前版本（从 package.json 读取）
  */
-function getCurrentVersion(): string {
+function getCurrentVersion(): { version: string; patch: number } {
   try {
     const pkgPath = path.join(ROOT_DIR, 'package.json')
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
-    return pkg.version || 'unknown'
+    return {
+      version: pkg.version || 'unknown',
+      patch: pkg.patchVersion || 0
+    }
   } catch {
-    return 'unknown'
+    return { version: 'unknown', patch: 0 }
   }
 }
 
@@ -77,7 +82,7 @@ async function hasGit(): Promise<boolean> {
 /**
  * 从 GitHub API 获取最新版本信息
  */
-async function getLatestRelease(): Promise<{ version: string; notes: string; date: string } | null> {
+async function getLatestRelease(): Promise<{ version: string; patch: number; notes: string; date: string } | null> {
   try {
     // 使用 GitHub API 获取最新 tag
     const response = await fetch(
@@ -104,6 +109,25 @@ async function getLatestRelease(): Promise<{ version: string; notes: string; dat
     const latestTag = tags[0].name
     const version = latestTag.replace(/^v/, '') // 移除 v 前缀
     
+    // 获取 package.json 中的 patchVersion
+    let patch = 0
+    try {
+      const pkgResp = await fetch(
+        `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${latestTag}/package.json`,
+        {
+          headers: {
+            'User-Agent': 'Start-App'
+          }
+        }
+      )
+      if (pkgResp.ok) {
+        const pkg = await pkgResp.json() as { patchVersion?: number }
+        patch = pkg.patchVersion || 0
+      }
+    } catch {
+      // 忽略 patchVersion 获取失败
+    }
+    
     // 尝试获取 release notes
     let notes = ''
     let date = ''
@@ -126,7 +150,7 @@ async function getLatestRelease(): Promise<{ version: string; notes: string; dat
       // 忽略 release notes 获取失败
     }
     
-    return { version, notes, date }
+    return { version, patch, notes, date }
   } catch (error) {
     logger.error('获取最新版本失败', { error })
     return null
@@ -255,12 +279,16 @@ function compareVersions(v1: string, v2: string): number {
  */
 router.get('/check', requireAuth, requireRoot, async (_req: AuthedRequest, res: Response) => {
   try {
-    const current = getCurrentVersion()
+    const currentInfo = getCurrentVersion()
     const gitAvailable = await hasGit()
     const latestInfo = await getLatestRelease()
     
-    const latest = latestInfo?.version || current
-    const hasUpdate = compareVersions(latest, current) > 0
+    const latest = latestInfo?.version || currentInfo.version
+    const latestPatch = latestInfo?.patch || 0
+    
+    // 比较版本：先比较大版本号，再比较补丁号
+    const versionCompare = compareVersions(latest, currentInfo.version)
+    const hasUpdate = versionCompare > 0 || (versionCompare === 0 && latestPatch > currentInfo.patch)
     
     // 智能检测是否需要安装依赖和重启
     let needsDeps = false
@@ -270,7 +298,7 @@ router.get('/check', requireAuth, requireRoot, async (_req: AuthedRequest, res: 
     
     if (hasUpdate) {
       // 通过 GitHub API 分析变更文件
-      const changes = await getChangedFiles(current, latest)
+      const changes = await getChangedFiles(currentInfo.version, latest)
       needsDeps = changes.needsDeps
       needsRestart = changes.needsRestart
       needsMigration = changes.needsMigration
@@ -278,8 +306,10 @@ router.get('/check', requireAuth, requireRoot, async (_req: AuthedRequest, res: 
     }
     
     const info: VersionInfo = {
-      current,
+      current: currentInfo.version,
+      currentPatch: currentInfo.patch,
       latest,
+      latestPatch,
       hasUpdate,
       releaseNotes: latestInfo?.notes || '',
       releaseDate: latestInfo?.date || '',
