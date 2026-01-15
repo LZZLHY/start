@@ -170,7 +170,7 @@ export function UpdateTab() {
     }, 500)
     
     return () => clearTimeout(timer)
-  }, []) // 只在组件挂载时执行一次
+  }, [token]) // token 变化时重新检查
 
   // 执行更新
   const doUpdate = useCallback(async () => {
