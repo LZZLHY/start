@@ -5,6 +5,8 @@ import { prisma } from '../prisma'
 import { fail, ok } from '../utils/http'
 import { hashPassword, verifyPassword } from '../services/auth'
 import { readProjectSettings, writeProjectSettings } from '../services/projectSettings'
+import { getHeatRanking } from '../services/clickStats'
+import { getSiteDisplayName } from '../utils/siteNormalizer'
 
 // --- Helpers ---
 
@@ -134,6 +136,43 @@ export async function deleteBookmarkAsAdmin(req: AuthedRequest, res: Response) {
 
   await prisma.bookmark.delete({ where: { id } })
   return ok(res, { id })
+}
+
+const UpdateBookmarkAsAdminSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  url: z.string().trim().url().max(2048).optional().or(z.literal('')),
+})
+
+export async function updateBookmarkAsAdmin(req: AuthedRequest, res: Response) {
+  const actor = req.auth
+  if (!actor) return fail(res, 401, '未登录')
+  if (actor.role !== 'ADMIN' && actor.role !== 'ROOT') return fail(res, 403, '无权限')
+
+  const id = String(req.params.id || '').trim()
+  if (!id) return fail(res, 400, '缺少书签 id')
+
+  const parsed = UpdateBookmarkAsAdminSchema.safeParse(req.body)
+  if (!parsed.success) return fail(res, 400, parsed.error.issues[0]?.message ?? '参数错误')
+
+  const item = await prisma.bookmark.findUnique({
+    where: { id },
+    select: { id: true, name: true, url: true, user: { select: { id: true, role: true } } },
+  })
+  if (!item) return fail(res, 404, '书签不存在')
+
+  if (actor.role === 'ADMIN' && item.user.role !== 'USER') {
+    return fail(res, 403, '无权限（管理员只能管理普通用户的数据）')
+  }
+
+  const updated = await prisma.bookmark.update({
+    where: { id },
+    data: {
+      ...(parsed.data.name !== undefined ? { name: parsed.data.name.trim() } : {}),
+      ...(parsed.data.url !== undefined ? { url: parsed.data.url?.trim() || null } : {}),
+    },
+  })
+
+  return ok(res, { item: updated })
 }
 
 export async function listExtensions(req: AuthedRequest, res: Response) {
@@ -392,4 +431,124 @@ export async function getServerStatus(req: AuthedRequest, res: Response) {
     uptime: formatUptime(uptime),
     uptimeMs: uptime,
   })
+}
+
+
+/**
+ * 获取管理员书签统计
+ * 返回按用户分组的书签统计，包含每个书签的点击数
+ */
+export async function getAdminBookmarkStats(req: AuthedRequest, res: Response) {
+  const actor = req.auth
+  if (!actor) return fail(res, 401, '未登录')
+  if (actor.role !== 'ADMIN' && actor.role !== 'ROOT') return fail(res, 403, '无权限')
+
+  // 获取所有用户（根据权限过滤）
+  const users = await prisma.user.findMany({
+    where: actor.role === 'ADMIN' ? { role: 'USER' } : {},
+    select: {
+      id: true,
+      username: true,
+      nickname: true,
+      role: true,
+    },
+  })
+
+  // 按角色排序：ROOT > ADMIN > USER
+  const roleOrder: Record<string, number> = { ROOT: 0, ADMIN: 1, USER: 2 }
+  users.sort((a, b) => (roleOrder[a.role] ?? 99) - (roleOrder[b.role] ?? 99))
+
+  // 获取所有书签
+  const bookmarks = await prisma.bookmark.findMany({
+    where: actor.role === 'ADMIN' ? { user: { role: 'USER' } } : {},
+    select: {
+      id: true,
+      name: true,
+      url: true,
+      type: true,
+      parentId: true,
+      userId: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  // 获取所有点击统计
+  const clickStats = await prisma.clickStat.findMany({
+    select: {
+      userId: true,
+      siteId: true,
+      clickCount: true,
+    },
+  })
+
+  // 构建 siteId -> 全局点击数 映射
+  const globalClickMap = new Map<string, number>()
+  for (const stat of clickStats) {
+    const current = globalClickMap.get(stat.siteId) ?? 0
+    globalClickMap.set(stat.siteId, current + stat.clickCount)
+  }
+
+  // 构建 userId:siteId -> 用户点击数 映射
+  const userClickMap = new Map<string, number>()
+  for (const stat of clickStats) {
+    userClickMap.set(`${stat.userId}:${stat.siteId}`, stat.clickCount)
+  }
+
+  // 从 URL 提取 siteId
+  const getSiteIdFromUrl = (url: string | null): string | null => {
+    if (!url) return null
+    try {
+      const parsed = new URL(url)
+      return `${parsed.protocol}//${parsed.hostname}`
+    } catch {
+      return null
+    }
+  }
+
+  // 按用户分组书签
+  const userStats = users.map(user => {
+    const userBookmarks = bookmarks.filter(b => b.userId === user.id)
+    
+    // 计算用户总点击数
+    let totalClicks = 0
+    const bookmarksWithStats = userBookmarks.map(bookmark => {
+      const siteId = getSiteIdFromUrl(bookmark.url)
+      const userClicks = siteId ? (userClickMap.get(`${user.id}:${siteId}`) ?? 0) : 0
+      const globalClicks = siteId ? (globalClickMap.get(siteId) ?? 0) : 0
+      totalClicks += userClicks
+      
+      return {
+        ...bookmark,
+        siteId,
+        userClicks,
+        globalClicks,
+      }
+    })
+
+    return {
+      user,
+      bookmarkCount: userBookmarks.length,
+      totalClicks,
+      bookmarks: bookmarksWithStats,
+    }
+  })
+
+  return ok(res, { userStats })
+}
+
+/**
+ * 获取热力榜单
+ * 返回全局点击量 Top N 站点
+ */
+export async function getAdminHeatRanking(req: AuthedRequest, res: Response) {
+  const actor = req.auth
+  if (!actor) return fail(res, 401, '未登录')
+  if (actor.role !== 'ADMIN' && actor.role !== 'ROOT') return fail(res, 403, '无权限')
+
+  const limit = Math.max(1, Math.min(100, parseInt(String(req.query.limit || '20'))))
+  
+  const ranking = await getHeatRanking(limit)
+
+  return ok(res, { ranking })
 }

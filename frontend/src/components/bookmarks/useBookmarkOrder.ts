@@ -4,15 +4,31 @@ import { applySortMode } from '../../utils/sortBookmarks'
 import { useAppearanceStore } from '../../stores/appearance'
 import type { BookmarkContext, BookmarkItem, SortMode } from '../../types/bookmark'
 
+// 本地定义类型，避免导入问题
+type BookmarkItemWithUrl = BookmarkItem & { url?: string | null }
+
 export function useBookmarkOrder(args: {
   userId: string | null | undefined
   folderId: string | null
   itemIds: string[]
   items?: BookmarkItem[]
+  itemsWithUrl?: BookmarkItemWithUrl[]
   context?: BookmarkContext
   sortMode?: SortMode
+  clickCounts?: Record<string, number>
+  urlToSiteId?: (url: string) => string | null
 }) {
-  const { userId, folderId, itemIds, items = [], context = 'shortcut', sortMode: sortModeOverride } = args
+  const { 
+    userId, 
+    folderId, 
+    itemIds, 
+    items = [], 
+    itemsWithUrl,
+    context = 'shortcut', 
+    sortMode: sortModeOverride,
+    clickCounts,
+    urlToSiteId,
+  } = args
   const [order, setOrder] = useState<string[]>([])
   const lastKeyRef = useRef<string>('')
   
@@ -48,6 +64,12 @@ export function useBookmarkOrder(args: {
   }, [itemIds, order])
 
   // 计算最终显示顺序
+  // 使用 JSON.stringify 确保 clickCounts 变化时能触发重新计算
+  const clickCountsKey = clickCounts ? JSON.stringify(clickCounts) : ''
+  // 使用 items 的 id 列表作为稳定的依赖键
+  const itemsKey = items.map(i => i.id).join(',')
+  // 使用 itemsWithUrl 的 id 列表作为稳定的依赖键
+  const itemsWithUrlKey = itemsWithUrl ? itemsWithUrl.map(i => i.id).join(',') : ''
   const visibleIds = useMemo(() => {
     // 快捷栏始终使用自定义顺序
     if (context === 'shortcut') {
@@ -59,8 +81,13 @@ export function useBookmarkOrder(args: {
       return customOrder
     }
     
-    return applySortMode(items, customOrder, sortMode)
-  }, [context, customOrder, items, sortMode])
+    return applySortMode(items, customOrder, sortMode, {
+      clickCounts,
+      urlToSiteId,
+      itemsWithUrl,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [context, customOrder, itemsKey, sortMode, clickCountsKey, urlToSiteId, itemsWithUrlKey])
 
   const persist = (next: string[], targetContext?: BookmarkContext) => {
     if (!userId) return

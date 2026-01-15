@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { requireAdmin, requireAuth, requireRoot } from '../middleware/auth'
 import {
   deleteBookmarkAsAdmin,
+  updateBookmarkAsAdmin,
   listBookmarks,
   listExtensions,
   listUsers,
@@ -14,6 +15,8 @@ import {
   updateRootProfile,
   updateUserProfileAsRoot,
   getServerStatus,
+  getAdminBookmarkStats,
+  getAdminHeatRanking,
 } from '../controllers/adminController'
 
 export const adminRouter = Router()
@@ -28,6 +31,9 @@ adminRouter.put('/root/password', requireAuth, requireRoot, changeRootPassword)
 
 adminRouter.get('/bookmarks', requireAuth, requireAdmin, listBookmarks)
 adminRouter.delete('/bookmarks/:id', requireAuth, requireAdmin, deleteBookmarkAsAdmin)
+adminRouter.patch('/bookmarks/:id', requireAuth, requireAdmin, updateBookmarkAsAdmin)
+adminRouter.get('/bookmarks/stats', requireAuth, requireAdmin, getAdminBookmarkStats)
+adminRouter.get('/bookmarks/heat-ranking', requireAuth, requireAdmin, getAdminHeatRanking)
 
 adminRouter.get('/extensions', requireAuth, requireAdmin, listExtensions)
 adminRouter.patch('/extensions/:id/review', requireAuth, requireAdmin, reviewExtension)

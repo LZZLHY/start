@@ -16,6 +16,7 @@ import { useBookmarkDndStore } from '../stores/bookmarkDnd'
 import { useBookmarkDrawerStore } from '../stores/bookmarkDrawer'
 import { useShortcutSet } from './bookmarks/useShortcutSet'
 import { useTitleFetch } from '../hooks/useTitleFetch'
+import { useClickTracker } from '../hooks/useClickTracker'
 
 // 快捷栏最大行数
 const MAX_ROWS = 3
@@ -169,6 +170,9 @@ export function BookmarkGrid() {
     removeShortcut,
     cleanupInvalidIds,
   } = useShortcutSet(user?.id)
+
+  // --- Click Tracker ---
+  const { trackClick } = useClickTracker()
 
   // --- Computed ---
   
@@ -462,7 +466,11 @@ export function BookmarkGrid() {
             return
           }
           if (isFolder) setActiveFolderId(b.id)
-          else if (b.url) window.open(b.url, '_blank', 'noopener,noreferrer')
+          else if (b.url) {
+            // 记录点击（异步，不阻塞）
+            trackClick(b.id)
+            window.open(b.url, '_blank', 'noopener,noreferrer')
+          }
         }}
         onContextMenu={(e) => {
           e.preventDefault()

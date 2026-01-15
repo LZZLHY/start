@@ -9,7 +9,6 @@ import {
   UserCircle,
   RefreshCw,
   Shield,
-  Trash2,
   CheckCircle2,
   XCircle,
   AlertCircle,
@@ -33,6 +32,7 @@ import { useAuthStore, type User } from '../../stores/auth'
 import { cn } from '../../utils/cn'
 import { LogsTab } from './LogsTab'
 import { UpdateTab } from './UpdateTab'
+import { BookmarksTab } from './BookmarksTab'
 
 // --- Types ---
 
@@ -47,16 +47,6 @@ type UserListResponse = {
   page: number
   limit: number
   totalPages: number
-}
-
-type AdminBookmark = {
-  id: string
-  name: string
-  url: string
-  note: string | null
-  createdAt: string
-  updatedAt: string
-  user: { id: string; username: string; nickname: string; role: 'USER' | 'ADMIN' | 'ROOT' }
 }
 
 type AdminExtension = {
@@ -145,7 +135,6 @@ export function AdminPage() {
   const [userSort, setUserSort] = useState('role_asc') // Default: Role ASC (Root->Admin->User), then Time DESC
 
   // Other Data
-  const [bookmarks, setBookmarks] = useState<AdminBookmark[]>([])
   const [extensions, setExtensions] = useState<AdminExtension[]>([])
   const [projectSettingsText, setProjectSettingsText] = useState<string>('{}')
 
@@ -192,27 +181,6 @@ export function AdminPage() {
       setLoading(false)
     }
   }, [token, userPage, userSearch, userSort])
-
-  const loadBookmarks = useCallback(async () => {
-    if (!token) return
-    setLoading(true)
-    try {
-      const resp = await apiFetch<{ items: AdminBookmark[] }>('/api/admin/bookmarks', { method: 'GET', token })
-      if (!resp.ok) return toast.error(resp.message)
-      setBookmarks(resp.data.items)
-    } finally {
-      setLoading(false)
-    }
-  }, [token])
-
-  const deleteBookmark = async (id: string) => {
-    if (!confirm('确定要删除这条书签吗？')) return
-    if (!token) return
-    const resp = await apiFetch<{ id: string }>(`/api/admin/bookmarks/${id}`, { method: 'DELETE', token })
-    if (!resp.ok) return toast.error(resp.message)
-    toast.success('已删除书签')
-    setBookmarks((prev) => prev.filter((x) => x.id !== id))
-  }
 
   const loadExtensions = useCallback(async () => {
     if (!token) return
@@ -344,7 +312,6 @@ export function AdminPage() {
   useEffect(() => {
     if (!isAdmin) return
     if (tab === 'users') void loadUsers(1, '', 'role_asc') // Reset on tab switch
-    if (tab === 'bookmarks') void loadBookmarks()
     if (tab === 'extensions') void loadExtensions()
     if (tab === 'project') void loadProjectSettings()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -452,7 +419,6 @@ export function AdminPage() {
             <div className="flex items-center gap-3">
               <Button variant="glass" size="sm" onClick={() => {
                 if (tab === 'users') loadUsers()
-                if (tab === 'bookmarks') loadBookmarks()
                 if (tab === 'extensions') loadExtensions()
                 if (tab === 'project') loadProjectSettings()
               }} disabled={loading}>
@@ -643,51 +609,7 @@ export function AdminPage() {
               )}
 
               {/* Bookmarks Tab */}
-              {tab === 'bookmarks' && (
-                <>
-                  <SectionHeader
-                    title="书签管理"
-                    subtitle="查看并管理所有用户创建的书签。"
-                  />
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {bookmarks.map((b) => (
-                      <Card key={b.id} className="group hover:border-primary/30 transition-all duration-300">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <div className="font-medium text-fg truncate">{b.name}</div>
-                              {b.note && <Badge variant="outline">备注</Badge>}
-                            </div>
-                            <a href={b.url} target="_blank" rel="noreferrer" className="text-xs text-primary/80 hover:underline break-all block mb-3">
-                              {b.url}
-                            </a>
-                            <div className="flex items-center gap-2 text-xs text-fg/50">
-                              <UserCircle className="w-3 h-3" />
-                              <span>{b.user.nickname}</span>
-                              <span>·</span>
-                              <span>{new Date(b.createdAt).toLocaleDateString()}</span>
-                            </div>
-                            {b.note && <div className="mt-2 text-xs text-fg/70 bg-glass/5 p-2 rounded-lg">{b.note}</div>}
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-fg/40 hover:text-red-500 hover:bg-red-50/10 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => deleteBookmark(b.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                  {bookmarks.length === 0 && !loading && (
-                    <div className="text-center py-12 text-fg/50 bg-glass/5 rounded-3xl border border-glass-border/10 border-dashed">
-                      暂无书签数据
-                    </div>
-                  )}
-                </>
-              )}
+              {tab === 'bookmarks' && <BookmarksTab />}
 
               {/* Extensions Tab */}
               {tab === 'extensions' && (

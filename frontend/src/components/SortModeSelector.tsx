@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { ArrowDownAZ, FolderUp, FolderDown, GripVertical, ChevronDown, Lock } from 'lucide-react'
+import { ArrowDownAZ, FolderUp, FolderDown, GripVertical, ChevronDown, Lock, MousePointerClick } from 'lucide-react'
 import { cn } from '../utils/cn'
 import type { SortMode } from '../types/bookmark'
 
@@ -8,6 +8,7 @@ const SORT_MODE_OPTIONS: { value: SortMode; label: string; icon: React.ReactNode
   { value: 'folders-first', label: '文件夹在前', icon: <FolderUp className="w-4 h-4" /> },
   { value: 'links-first', label: '链接在前', icon: <FolderDown className="w-4 h-4" /> },
   { value: 'alphabetical', label: '按名称 A-Z', icon: <ArrowDownAZ className="w-4 h-4" /> },
+  { value: 'click-count', label: '按点击次数', icon: <MousePointerClick className="w-4 h-4" /> },
 ]
 
 type SortModeSelectorProps = {

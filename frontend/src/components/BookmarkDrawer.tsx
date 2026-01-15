@@ -18,6 +18,7 @@ import { SearchBox } from './SearchBox'
 import { SortModeSelector } from './SortModeSelector'
 import { useShortcutSet } from './bookmarks/useShortcutSet'
 import { useTitleFetch } from '../hooks/useTitleFetch'
+import { useClickTracker, getSiteIdFromUrl } from '../hooks/useClickTracker'
 
 // --- Types ---
 
@@ -112,6 +113,9 @@ export function BookmarkDrawer({ open, onClose }: BookmarkDrawerProps) {
     isShortcut,
     isFull,
   } = useShortcutSet(user?.id)
+
+  // --- Click Tracker ---
+  const { clickStats, trackClick, refreshStats: refreshClickStats } = useClickTracker()
 
   // --- State ---
   const [allItems, setAllItems] = useState<Bookmark[]>([])
@@ -223,13 +227,26 @@ export function BookmarkDrawer({ open, onClose }: BookmarkDrawerProps) {
     }))
   }, [currentItems])
 
+  // 转换为 BookmarkItemWithUrl 格式用于点击排序
+  const bookmarkItemsWithUrl = useMemo(() => {
+    return currentItems.map(item => ({
+      id: item.id,
+      name: item.name,
+      type: item.type,
+      url: item.url,
+    }))
+  }, [currentItems])
+
   const order = useBookmarkOrder({
     userId: user?.id,
     folderId: activeFolderId,
     itemIds: currentItems.map((x) => x.id),
     items: bookmarkItems,
+    itemsWithUrl: bookmarkItemsWithUrl,
     context: 'drawer',
     sortMode,
+    clickCounts: clickStats.stats,
+    urlToSiteId: getSiteIdFromUrl,
   })
   const visibleIds = order.visibleIds
 
@@ -256,8 +273,9 @@ export function BookmarkDrawer({ open, onClose }: BookmarkDrawerProps) {
   useEffect(() => {
     if (open) {
       void load()
+      void refreshClickStats()
     }
-  }, [load, open])
+  }, [load, open, refreshClickStats])
 
   useEffect(() => {
     const close = () => setMenu({ open: false })
@@ -475,7 +493,11 @@ export function BookmarkDrawer({ open, onClose }: BookmarkDrawerProps) {
             return
           }
           if (isFolder) setActiveFolderId(b.id)
-          else if (b.url) window.open(b.url, '_blank', 'noopener,noreferrer')
+          else if (b.url) {
+            // 记录点击（异步，不阻塞）
+            trackClick(b.id)
+            window.open(b.url, '_blank', 'noopener,noreferrer')
+          }
         }}
         onContextMenu={(e) => {
           e.preventDefault()

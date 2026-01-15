@@ -28,8 +28,9 @@ model User {
   nickname     String   @unique
   role         Role     @default(USER)
 
-  bookmarks Bookmark[]
-  extensions Extension[]
+  bookmarks   Bookmark[]
+  extensions  Extension[]
+  clickStats  ClickStat[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -79,4 +80,20 @@ model Extension {
 
   @@index([userId])
   @@index([status])
+}
+
+
+model ClickStat {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  siteId      String   // 规范化的站点标识符，如 "https://www.baidu.com"
+  clickCount  Int      @default(0)
+  lastClickAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, siteId])
+  @@index([userId])
+  @@index([siteId])
 }

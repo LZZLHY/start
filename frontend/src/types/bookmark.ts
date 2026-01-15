@@ -4,8 +4,9 @@
  * - folders-first: 文件夹在前，链接在后
  * - links-first: 链接在前，文件夹在后
  * - alphabetical: 按名称字母排序（支持中文拼音）
+ * - click-count: 按点击次数排序（降序，相同点击数按拼音排序）
  */
-export type SortMode = 'custom' | 'folders-first' | 'links-first' | 'alphabetical'
+export type SortMode = 'custom' | 'folders-first' | 'links-first' | 'alphabetical' | 'click-count'
 
 /**
  * 书签上下文

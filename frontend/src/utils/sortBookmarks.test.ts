@@ -5,7 +5,9 @@ import {
   compareNames,
   sortByType,
   sortAlphabetically,
+  sortByClickCount,
   applySortMode,
+  BookmarkItemWithUrl,
 } from './sortBookmarks'
 import type { BookmarkItem } from '../types/bookmark'
 
@@ -332,6 +334,163 @@ describe('sortBookmarks', () => {
       expect(applySortMode(items, ['1'], 'folders-first')).toEqual(['1'])
       expect(applySortMode(items, ['1'], 'links-first')).toEqual(['1'])
       expect(applySortMode(items, ['1'], 'alphabetical')).toEqual(['1'])
+    })
+  })
+
+  /**
+   * Property 6: Click Count Sorting with Tie-Breaking
+   * For any list of bookmarks with click counts, when sortMode is "click-count",
+   * items SHALL be sorted by click count in descending order,
+   * with ties broken by alphabetical order (pinyin for Chinese).
+   * Items with zero clicks SHALL appear at the end.
+   * 
+   * Feature: bookmark-click-stats, Property 6: Click Count Sorting with Tie-Breaking
+   * Validates: Requirements 4.1, 4.2, 4.4
+   */
+  describe('Property 6: Click Count Sorting with Tie-Breaking', () => {
+    // 生成带 URL 的书签项
+    const bookmarkItemWithUrlArb = fc.record({
+      id: fc.uuid(),
+      name: fc.string({ minLength: 1, maxLength: 50 }),
+      type: fc.constantFrom('LINK' as const, 'FOLDER' as const),
+      url: fc.option(fc.webUrl(), { nil: null }),
+    })
+
+    // 生成唯一 ID 的书签列表
+    const uniqueBookmarkWithUrlListArb = fc.array(bookmarkItemWithUrlArb, { minLength: 0, maxLength: 20 }).map(items => {
+      const seen = new Set<string>()
+      return items.filter(item => {
+        if (seen.has(item.id)) return false
+        seen.add(item.id)
+        return true
+      })
+    })
+
+    // 简单的 URL 到 siteId 转换函数
+    const urlToSiteId = (url: string): string | null => {
+      try {
+        const parsed = new URL(url)
+        return `${parsed.protocol}//${parsed.hostname}`
+      } catch {
+        return null
+      }
+    }
+
+    it('should sort by click count descending', () => {
+      fc.assert(
+        fc.property(
+          uniqueBookmarkWithUrlListArb,
+          fc.dictionary(fc.webUrl().map(u => urlToSiteId(u) || ''), fc.integer({ min: 0, max: 1000 })),
+          (items, clickCounts) => {
+            if (items.length <= 1) return true
+
+            const result = sortByClickCount(items, clickCounts, urlToSiteId)
+            
+            // 验证：结果中的每个项的点击数应该 >= 下一个项的点击数（除了零点击的）
+            for (let i = 0; i < result.length - 1; i++) {
+              const currentItem = items.find(it => it.id === result[i])
+              const nextItem = items.find(it => it.id === result[i + 1])
+              
+              if (!currentItem || !nextItem) continue
+              
+              const currentSiteId = currentItem.url ? urlToSiteId(currentItem.url) : null
+              const nextSiteId = nextItem.url ? urlToSiteId(nextItem.url) : null
+              
+              const currentCount = currentSiteId ? (clickCounts[currentSiteId] ?? 0) : 0
+              const nextCount = nextSiteId ? (clickCounts[nextSiteId] ?? 0) : 0
+              
+              // 零点击的应该在最后
+              if (currentCount === 0 && nextCount > 0) {
+                // 这不应该发生
+                expect(currentCount).toBeGreaterThanOrEqual(nextCount)
+              }
+              
+              // 非零点击的应该按降序排列
+              if (currentCount > 0 && nextCount > 0) {
+                expect(currentCount).toBeGreaterThanOrEqual(nextCount)
+              }
+            }
+          }
+        ),
+        { numRuns: 100 }
+      )
+    })
+
+    it('should break ties by alphabetical order', () => {
+      const items: BookmarkItemWithUrl[] = [
+        { id: '1', name: 'Zebra', type: 'LINK', url: 'https://zebra.com' },
+        { id: '2', name: 'Apple', type: 'LINK', url: 'https://apple.com' },
+        { id: '3', name: 'Banana', type: 'LINK', url: 'https://banana.com' },
+      ]
+      
+      // 所有站点都有相同的点击数
+      const clickCounts: Record<string, number> = {
+        'https://zebra.com': 10,
+        'https://apple.com': 10,
+        'https://banana.com': 10,
+      }
+
+      const result = sortByClickCount(items, clickCounts, urlToSiteId)
+
+      // 相同点击数应该按字母排序：Apple < Banana < Zebra
+      expect(result).toEqual(['2', '3', '1'])
+    })
+
+    it('should place zero-click items at the end', () => {
+      const items: BookmarkItemWithUrl[] = [
+        { id: '1', name: 'A', type: 'LINK', url: 'https://a.com' },
+        { id: '2', name: 'B', type: 'LINK', url: 'https://b.com' },
+        { id: '3', name: 'C', type: 'LINK', url: 'https://c.com' },
+      ]
+      
+      const clickCounts: Record<string, number> = {
+        'https://a.com': 0,
+        'https://b.com': 5,
+        'https://c.com': 0,
+      }
+
+      const result = sortByClickCount(items, clickCounts, urlToSiteId)
+
+      // B 有点击数，应该在前面
+      // A 和 C 没有点击数，应该在后面（按字母排序）
+      expect(result[0]).toBe('2') // B
+      expect(result.slice(1).sort()).toEqual(['1', '3']) // A, C
+    })
+
+    it('should handle items without URL', () => {
+      const items: BookmarkItemWithUrl[] = [
+        { id: '1', name: 'Folder', type: 'FOLDER', url: null },
+        { id: '2', name: 'Link', type: 'LINK', url: 'https://link.com' },
+      ]
+      
+      const clickCounts: Record<string, number> = {
+        'https://link.com': 10,
+      }
+
+      const result = sortByClickCount(items, clickCounts, urlToSiteId)
+
+      // Link 有点击数，应该在前面
+      // Folder 没有 URL，视为零点击，在后面
+      expect(result).toEqual(['2', '1'])
+    })
+
+    it('should sort Chinese names by pinyin when click counts are equal', () => {
+      const items: BookmarkItemWithUrl[] = [
+        { id: '1', name: '成都', type: 'LINK', url: 'https://chengdu.com' },
+        { id: '2', name: '阿里', type: 'LINK', url: 'https://ali.com' },
+        { id: '3', name: '北京', type: 'LINK', url: 'https://beijing.com' },
+      ]
+      
+      const clickCounts: Record<string, number> = {
+        'https://chengdu.com': 5,
+        'https://ali.com': 5,
+        'https://beijing.com': 5,
+      }
+
+      const result = sortByClickCount(items, clickCounts, urlToSiteId)
+
+      // 相同点击数按拼音排序：阿里 (a) < 北京 (b) < 成都 (c)
+      expect(result).toEqual(['2', '3', '1'])
     })
   })
 })
