@@ -11,6 +11,8 @@ import { useSearchHistory } from '../hooks/useSearchHistory'
 import { useSearchSuggestions } from '../hooks/useSearchSuggestions'
 import { useShortcutMatcher, type Bookmark } from '../hooks/useShortcutMatcher'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
+import { useRecentBookmarks } from '../hooks/useRecentBookmarks'
+import { useClickTracker } from '../hooks/useClickTracker'
 import { SearchDropdown, getAllDropdownItems, type DropdownItem } from './SearchDropdown'
 
 type Props = {
@@ -38,6 +40,9 @@ export function SearchBox({ className }: Props) {
   const customSearchUrl = useAppearanceStore((s) => s.customSearchUrl)
   const searchHistoryCount = useAppearanceStore((s) => s.searchHistoryCount)
   const searchRowHeight = useAppearanceStore((s) => s.searchRowHeight)
+  const recentBookmarksCount = useAppearanceStore((s) => s.recentBookmarksCount)
+  const recentBookmarksEnabled = useAppearanceStore((s) => s.recentBookmarksEnabled)
+  const recentBookmarksMode = useAppearanceStore((s) => s.recentBookmarksMode)
   const searchGlowBorder = useAppearanceStore((s) => s.searchGlowBorder)
   const searchGlowLight = useAppearanceStore((s) => s.searchGlowLight)
   const searchGlowLightMove = useAppearanceStore((s) => s.searchGlowLightMove)
@@ -48,6 +53,13 @@ export function SearchBox({ className }: Props) {
 
   // 搜索历史
   const { history, addToHistory, removeFromHistory } = useSearchHistory(user?.id)
+
+  // 最近点击的书签（根据模式决定获取数量）
+  const recentLimit = recentBookmarksMode === 'fixed' ? recentBookmarksCount : 12
+  const { recentBookmarks } = useRecentBookmarks(recentLimit)
+  
+  // 点击追踪
+  const { trackClick } = useClickTracker()
 
   // 搜索建议（仅在有输入时启用）
   const trimmedQuery = q.trim()
@@ -64,18 +76,15 @@ export function SearchBox({ className }: Props) {
   const dropdownItems = useMemo(() => {
     if (!isFocused) return []
     
-    // 有输入时显示快捷方式和建议
+    // 有输入时显示快捷方式和建议（不显示最近书签）
     if (trimmedQuery) {
-      return getAllDropdownItems(shortcuts, suggestions, [])
+      return getAllDropdownItems(shortcuts, suggestions, [], [])
     }
     
-    // 无输入时显示历史（如果启用）
-    if (searchHistoryCount > 0) {
-      return getAllDropdownItems([], [], history)
-    }
-    
-    return []
-  }, [isFocused, trimmedQuery, shortcuts, suggestions, history, searchHistoryCount])
+    // 无输入时显示最近书签和历史
+    const recentToShow = recentBookmarksEnabled ? recentBookmarks : []
+    return getAllDropdownItems([], [], searchHistoryCount > 0 ? history : [], recentToShow)
+  }, [isFocused, trimmedQuery, shortcuts, suggestions, history, searchHistoryCount, recentBookmarks, recentBookmarksEnabled])
 
   // 键盘导航
   const handleSelectItem = useCallback((index: number) => {
@@ -173,16 +182,18 @@ export function SearchBox({ className }: Props) {
 
   // 处理下拉框项目选择
   const handleItemSelect = useCallback((item: DropdownItem) => {
-    if (item.type === 'shortcut') {
-      // 打开快捷方式
+    if (item.type === 'shortcut' || item.type === 'recent') {
+      // 打开快捷方式或最近书签
       window.open(item.url, '_blank', 'noopener,noreferrer')
+      // 记录点击（会自动触发最近列表刷新）
+      void trackClick(item.id)
       setQ('')
       setIsFocused(false)
     } else if (item.type === 'suggestion' || item.type === 'history') {
       // 执行搜索
       executeSearch(item.text)
     }
-  }, [executeSearch])
+  }, [executeSearch, trackClick])
 
   // 处理删除历史
   const handleDeleteHistory = useCallback((text: string) => {
@@ -261,6 +272,8 @@ export function SearchBox({ className }: Props) {
         shortcuts={trimmedQuery ? shortcuts : []}
         suggestions={trimmedQuery ? suggestions : []}
         history={displayHistory}
+        recentBookmarks={!trimmedQuery && recentBookmarksEnabled ? recentBookmarks : []}
+        recentBookmarksMode={recentBookmarksMode}
         highlightIndex={highlightIndex}
         isLoading={suggestionsLoading}
         rowHeight={searchRowHeight}

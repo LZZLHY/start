@@ -1,16 +1,25 @@
-import { Clock, Search, X } from 'lucide-react'
+import { Clock, Search, X, ExternalLink } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { cn } from '../utils/cn'
 
 export type DropdownItem =
   | { type: 'shortcut'; id: string; name: string; url: string; favicon: string }
   | { type: 'suggestion'; text: string }
   | { type: 'history'; text: string }
+  | { type: 'recent'; id: string; name: string; url: string; favicon: string | null }
 
 interface ShortcutMatch {
   id: string
   name: string
   url: string
   favicon: string
+}
+
+interface RecentBookmark {
+  id: string
+  name: string
+  url: string
+  favicon: string | null
 }
 
 interface SearchDropdownProps {
@@ -22,6 +31,10 @@ interface SearchDropdownProps {
   suggestions: string[]
   /** 搜索历史 */
   history: string[]
+  /** 最近点击的书签 */
+  recentBookmarks?: RecentBookmark[]
+  /** 最近打开显示模式 */
+  recentBookmarksMode?: 'fixed' | 'dynamic'
   /** 当前高亮索引，-1 表示无选中 */
   highlightIndex: number
   /** 是否正在加载建议 */
@@ -39,6 +52,8 @@ export function SearchDropdown({
   shortcuts,
   suggestions,
   history,
+  recentBookmarks = [],
+  recentBookmarksMode = 'dynamic',
   highlightIndex,
   isLoading,
   rowHeight = 40,
@@ -47,8 +62,58 @@ export function SearchDropdown({
 }: SearchDropdownProps) {
   if (!isVisible) return null
 
+  // 动态模式：计算能显示多少个书签
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [visibleCount, setVisibleCount] = useState(recentBookmarks.length)
+
+  // 计算每个书签的预估宽度
+  const estimateItemWidth = useCallback((name: string) => {
+    // 图标 16px + gap 8px + padding 20px + 文字（每个字符约 8px，最大 120px）+ border 2px
+    const textWidth = Math.min(name.length * 8, 120)
+    return 16 + 8 + 20 + textWidth + 2 + 6 // 6px for gap
+  }, [])
+
+  // 监听容器宽度变化，计算能显示多少个
+  useEffect(() => {
+    if (recentBookmarksMode !== 'dynamic' || recentBookmarks.length === 0) {
+      setVisibleCount(recentBookmarks.length)
+      return
+    }
+
+    const container = containerRef.current
+    if (!container) return
+
+    const calculateVisibleCount = () => {
+      const containerWidth = container.offsetWidth
+      let totalWidth = 0
+      let count = 0
+
+      for (const bookmark of recentBookmarks) {
+        const itemWidth = estimateItemWidth(bookmark.name)
+        if (totalWidth + itemWidth > containerWidth) break
+        totalWidth += itemWidth
+        count++
+      }
+
+      setVisibleCount(Math.max(1, count)) // 至少显示 1 个
+    }
+
+    calculateVisibleCount()
+
+    const observer = new ResizeObserver(calculateVisibleCount)
+    observer.observe(container)
+
+    return () => observer.disconnect()
+  }, [recentBookmarks, recentBookmarksMode, estimateItemWidth])
+
+  // 根据模式决定显示的书签
+  const displayedRecentBookmarks = recentBookmarksMode === 'dynamic'
+    ? recentBookmarks.slice(0, visibleCount)
+    : recentBookmarks
+
   // 构建所有项目的扁平列表，用于键盘导航
   const allItems: DropdownItem[] = [
+    ...recentBookmarks.map((b) => ({ type: 'recent' as const, ...b })),
     ...shortcuts.map((s) => ({ type: 'shortcut' as const, ...s })),
     ...suggestions.map((text) => ({ type: 'suggestion' as const, text })),
     ...history.map((text) => ({ type: 'history' as const, text })),
@@ -69,6 +134,59 @@ export function SearchDropdown({
       )}
     >
       <div className="max-h-[320px] overflow-y-auto py-2">
+        {/* 最近点击的书签区域 */}
+        {recentBookmarks.length > 0 && (
+          <div className="px-3 pb-2">
+            <div className="text-[10px] text-fg/50 mb-1.5 px-1">最近打开</div>
+            <div
+              ref={containerRef}
+              className={cn(
+                'flex gap-1.5',
+                recentBookmarksMode === 'dynamic' ? 'flex-nowrap' : 'flex-wrap'
+              )}
+            >
+              {displayedRecentBookmarks.map((bookmark) => {
+                const itemIndex = currentIndex++
+                const isHighlighted = highlightIndex === itemIndex
+                return (
+                  <button
+                    key={`recent-${bookmark.id}`}
+                    type="button"
+                    onClick={() => onSelectItem({ type: 'recent', ...bookmark })}
+                    className={cn(
+                      'flex items-center gap-2 px-2.5 py-1.5 rounded-xl shrink-0',
+                      'text-sm transition-all duration-150',
+                      'border',
+                      isHighlighted
+                        ? 'bg-primary/20 border-primary/30 text-fg'
+                        : 'bg-glass/20 border-glass-border/10 text-fg/90 hover:bg-primary/15 hover:border-primary/20 hover:text-fg',
+                    )}
+                  >
+                    {bookmark.favicon ? (
+                      <img
+                        src={bookmark.favicon}
+                        alt=""
+                        className="w-4 h-4 rounded-sm"
+                        onError={(e) => {
+                          ;(e.target as HTMLImageElement).style.display = 'none'
+                        }}
+                      />
+                    ) : (
+                      <ExternalLink className="w-4 h-4 text-fg/40" />
+                    )}
+                    <span className="truncate max-w-[120px]">{bookmark.name}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 分隔线 */}
+        {recentBookmarks.length > 0 && (shortcuts.length > 0 || suggestions.length > 0 || history.length > 0) && (
+          <div className="h-px bg-glass-border/10 mx-3 my-1" />
+        )}
+
         {/* 快捷方式匹配区域 */}
         {shortcuts.length > 0 && (
           <div className="px-3 pb-2">
@@ -225,9 +343,11 @@ export function SearchDropdown({
 export function getAllDropdownItems(
   shortcuts: ShortcutMatch[],
   suggestions: string[],
-  history: string[]
+  history: string[],
+  recentBookmarks: RecentBookmark[] = []
 ): DropdownItem[] {
   return [
+    ...recentBookmarks.map((b) => ({ type: 'recent' as const, ...b })),
     ...shortcuts.map((s) => ({ type: 'shortcut' as const, ...s })),
     ...suggestions.map((text) => ({ type: 'suggestion' as const, text })),
     ...history.map((text) => ({ type: 'history' as const, text })),

@@ -1,39 +1,58 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { apiFetch } from '../services/api'
+import { useAuthStore } from '../stores/auth'
 import type { SearchEngine } from '../stores/appearance'
 
 const DEBOUNCE_DELAY = 300
 const MAX_SUGGESTIONS = 8
-const REQUEST_TIMEOUT = 5000
+
+/** 已显示过的谷歌网络错误提示（避免重复提示） */
+let googleNetworkErrorShown = false
 
 /**
- * 搜索建议 API URL 模板
- * 注意：由于跨域限制，这些 API 可能需要通过后端代理
+ * 通过后端代理获取搜索建议
  */
-const SUGGESTION_API_URLS: Record<Exclude<SearchEngine, 'custom'>, string> = {
-  // 百度使用 JSONP
-  baidu: 'https://suggestion.baidu.com/su?wd={query}&cb={callback}',
-  // 必应 OpenSearch JSON
-  bing: 'https://api.bing.com/osjson.aspx?query={query}',
-  // 谷歌 OpenSearch JSON
-  google: 'https://suggestqueries.google.com/complete/search?client=firefox&q={query}',
+async function fetchSuggestionsViaProxy(
+  query: string,
+  engine: Exclude<SearchEngine, 'custom'>,
+  token: string | null
+): Promise<string[]> {
+  if (!token) return []
+
+  const resp = await apiFetch<{ suggestions: string[]; engine: string }>(
+    `/api/utils/search-suggestions?query=${encodeURIComponent(query)}&engine=${engine}`,
+    { method: 'GET', token }
+  )
+
+  if (!resp.ok) {
+    // 谷歌网络错误特殊处理
+    if (engine === 'google' && resp.message?.includes('无法连接谷歌')) {
+      if (!googleNetworkErrorShown) {
+        googleNetworkErrorShown = true
+        toast.error('无法获取谷歌搜索建议，请检查网络环境', {
+          duration: 5000,
+          id: 'google-suggestion-error',
+        })
+        // 30秒后重置，允许再次提示
+        setTimeout(() => {
+          googleNetworkErrorShown = false
+        }, 30000)
+      }
+    }
+    return []
+  }
+
+  return resp.data.suggestions.slice(0, MAX_SUGGESTIONS)
 }
 
 /**
- * 生成唯一的 JSONP 回调函数名
+ * 通过 JSONP 获取百度搜索建议（前端直接请求，无 CORS 问题）
  */
-function generateCallbackName(): string {
-  return `__searchSuggestionCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`
-}
-
-/**
- * 通过 JSONP 获取百度搜索建议
- */
-async function fetchBaiduSuggestions(query: string): Promise<string[]> {
-  return new Promise((resolve, reject) => {
-    const callbackName = generateCallbackName()
-    const url = SUGGESTION_API_URLS.baidu
-      .replace('{query}', encodeURIComponent(query))
-      .replace('{callback}', callbackName)
+async function fetchBaiduSuggestionsDirect(query: string): Promise<string[]> {
+  return new Promise((resolve) => {
+    const callbackName = `__baiduSuggestion_${Date.now()}_${Math.random().toString(36).slice(2)}`
+    const url = `https://suggestion.baidu.com/su?wd=${encodeURIComponent(query)}&cb=${callbackName}`
 
     const script = document.createElement('script')
     script.src = url
@@ -45,19 +64,19 @@ async function fetchBaiduSuggestions(query: string): Promise<string[]> {
 
     const timeout = setTimeout(() => {
       cleanup()
-      reject(new Error('Request timeout'))
-    }, REQUEST_TIMEOUT)
+      resolve([])
+    }, 5000)
 
     ;(window as any)[callbackName] = (data: { s?: string[] }) => {
       clearTimeout(timeout)
       cleanup()
-      resolve(Array.isArray(data?.s) ? data.s : [])
+      resolve(Array.isArray(data?.s) ? data.s.slice(0, MAX_SUGGESTIONS) : [])
     }
 
     script.onerror = () => {
       clearTimeout(timeout)
       cleanup()
-      reject(new Error('Script load error'))
+      resolve([])
     }
 
     document.head.appendChild(script)
@@ -65,49 +84,12 @@ async function fetchBaiduSuggestions(query: string): Promise<string[]> {
 }
 
 /**
- * 通过 fetch 获取必应/谷歌搜索建议
- * 注意：由于 CORS 限制，这可能需要后端代理
- */
-async function fetchJsonSuggestions(
-  engine: 'bing' | 'google',
-  query: string
-): Promise<string[]> {
-  const url = SUGGESTION_API_URLS[engine].replace('{query}', encodeURIComponent(query))
-
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
-
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      mode: 'cors',
-    })
-    clearTimeout(timeout)
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
-    }
-
-    const data = await response.json()
-    
-    // OpenSearch JSON 格式: [query, [suggestions], ...]
-    if (Array.isArray(data) && Array.isArray(data[1])) {
-      return data[1].filter((s: unknown) => typeof s === 'string')
-    }
-    
-    return []
-  } catch (error) {
-    clearTimeout(timeout)
-    throw error
-  }
-}
-
-/**
  * 获取搜索建议
  */
 export async function fetchSuggestions(
   query: string,
-  engine: SearchEngine
+  engine: SearchEngine,
+  token: string | null
 ): Promise<string[]> {
   const trimmed = query.trim()
   if (!trimmed) return []
@@ -116,16 +98,13 @@ export async function fetchSuggestions(
   if (engine === 'custom') return []
 
   try {
-    let suggestions: string[]
-    
+    // 百度可以直接前端请求（JSONP）
     if (engine === 'baidu') {
-      suggestions = await fetchBaiduSuggestions(trimmed)
-    } else {
-      suggestions = await fetchJsonSuggestions(engine, trimmed)
+      return await fetchBaiduSuggestionsDirect(trimmed)
     }
-
-    // 限制返回数量
-    return suggestions.slice(0, MAX_SUGGESTIONS)
+    
+    // 必应和谷歌通过后端代理
+    return await fetchSuggestionsViaProxy(trimmed, engine, token)
   } catch (error) {
     console.warn(`Failed to fetch suggestions from ${engine}:`, error)
     return []
@@ -160,10 +139,11 @@ export function useSearchSuggestions(
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   
+  const token = useAuthStore((s) => s.token)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
-  const fetchData = useCallback(async (q: string, eng: SearchEngine) => {
+  const fetchData = useCallback(async (q: string, eng: SearchEngine, t: string | null) => {
     // 取消之前的请求
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
@@ -174,7 +154,7 @@ export function useSearchSuggestions(
     setError(null)
 
     try {
-      const result = await fetchSuggestions(q, eng)
+      const result = await fetchSuggestions(q, eng, t)
       setSuggestions(result)
     } catch (err) {
       if (err instanceof Error && err.name !== 'AbortError') {
@@ -211,7 +191,7 @@ export function useSearchSuggestions(
 
     // 防抖处理
     debounceTimerRef.current = setTimeout(() => {
-      void fetchData(trimmed, engine)
+      void fetchData(trimmed, engine, token)
     }, DEBOUNCE_DELAY)
 
     return () => {
@@ -219,7 +199,7 @@ export function useSearchSuggestions(
         clearTimeout(debounceTimerRef.current)
       }
     }
-  }, [query, engine, enabled, fetchData])
+  }, [query, engine, enabled, token, fetchData])
 
   // 组件卸载时清理
   useEffect(() => {

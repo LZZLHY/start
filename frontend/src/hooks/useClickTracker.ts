@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { apiFetch } from '../services/api'
 import { useAuthStore } from '../stores/auth'
+import { emitBookmarkClicked } from './useRecentBookmarks'
 
 export interface ClickStats {
   /** siteId -> clickCount */
@@ -51,15 +52,16 @@ export function useClickTracker() {
   }, [token])
 
   /**
-   * 记录书签点击（异步，不阻塞 UI）
+   * 记录书签点击
+   * @returns Promise，点击记录完成后 resolve
    */
-  const trackClick = useCallback(async (bookmarkId: string) => {
+  const trackClick = useCallback(async (bookmarkId: string): Promise<void> => {
     if (!token) return
-    // 异步发送，不等待结果
-    apiFetch(`/api/bookmarks/${bookmarkId}/click`, {
-      method: 'POST',
-      token,
-    }).then((resp) => {
+    try {
+      const resp = await apiFetch(`/api/bookmarks/${bookmarkId}/click`, {
+        method: 'POST',
+        token,
+      })
       if (resp.ok) {
         // 更新本地统计（乐观更新）
         const data = resp.data as { siteId: string; userClicks: number }
@@ -69,10 +71,12 @@ export function useClickTracker() {
             [data.siteId]: data.userClicks,
           },
         }))
+        // 触发全局事件，通知最近书签列表刷新
+        emitBookmarkClicked()
       }
-    }).catch(() => {
+    } catch {
       // 静默失败，不影响用户体验
-    })
+    }
   }, [token])
 
   /**

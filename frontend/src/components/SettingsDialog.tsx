@@ -84,6 +84,9 @@ export function SettingsDialog({ open, onClose }: Props) {
   const customSearchUrl = useAppearanceStore((s) => s.customSearchUrl)
   const searchHistoryCount = useAppearanceStore((s) => s.searchHistoryCount)
   const searchRowHeight = useAppearanceStore((s) => s.searchRowHeight)
+  const recentBookmarksCount = useAppearanceStore((s) => s.recentBookmarksCount)
+  const recentBookmarksEnabled = useAppearanceStore((s) => s.recentBookmarksEnabled)
+  const recentBookmarksMode = useAppearanceStore((s) => s.recentBookmarksMode)
   const searchGlowBorder = useAppearanceStore((s) => s.searchGlowBorder)
   const searchGlowLight = useAppearanceStore((s) => s.searchGlowLight)
   const searchGlowLightMove = useAppearanceStore((s) => s.searchGlowLightMove)
@@ -109,6 +112,9 @@ export function SettingsDialog({ open, onClose }: Props) {
   const setCustomSearchUrl = useAppearanceStore((s) => s.setCustomSearchUrl)
   const setSearchHistoryCount = useAppearanceStore((s) => s.setSearchHistoryCount)
   const setSearchRowHeight = useAppearanceStore((s) => s.setSearchRowHeight)
+  const setRecentBookmarksCount = useAppearanceStore((s) => s.setRecentBookmarksCount)
+  const setRecentBookmarksEnabled = useAppearanceStore((s) => s.setRecentBookmarksEnabled)
+  const setRecentBookmarksMode = useAppearanceStore((s) => s.setRecentBookmarksMode)
   const setSearchGlowBorder = useAppearanceStore((s) => s.setSearchGlowBorder)
   const setSearchGlowLight = useAppearanceStore((s) => s.setSearchGlowLight)
   const setSearchGlowLightMove = useAppearanceStore((s) => s.setSearchGlowLightMove)
@@ -792,6 +798,75 @@ export function SettingsDialog({ open, onClose }: Props) {
                     <div className="text-xs text-fg/60">
                       提示：设为 0 可关闭搜索历史显示。历史记录按用户保存，不同账号互不影响。
                     </div>
+                  </div>
+                </Section>
+
+                <Section title="最近打开">
+                  <div className="space-y-3">
+                    {/* 开关 */}
+                    <div className="flex flex-wrap gap-2">
+                      <SegButton
+                        active={recentBookmarksEnabled}
+                        onClick={() => setRecentBookmarksEnabled(!recentBookmarksEnabled)}
+                      >
+                        {recentBookmarksEnabled ? '显示最近打开：开' : '显示最近打开：关'}
+                      </SegButton>
+                    </div>
+
+                    {/* 模式选择 - 仅在开启时显示 */}
+                    {recentBookmarksEnabled && (
+                      <>
+                        <div className="flex flex-wrap gap-2">
+                          <SegButton
+                            active={recentBookmarksMode === 'dynamic'}
+                            onClick={() => setRecentBookmarksMode('dynamic')}
+                          >
+                            动态一行
+                          </SegButton>
+                          <SegButton
+                            active={recentBookmarksMode === 'fixed'}
+                            onClick={() => setRecentBookmarksMode('fixed')}
+                          >
+                            固定数量
+                          </SegButton>
+                        </div>
+
+                        {/* 固定数量设置 */}
+                        {recentBookmarksMode === 'fixed' && (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="text-xs text-fg/60">
+                                显示数量：
+                                <span className="font-medium text-fg/80">{recentBookmarksCount} 个</span>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setRecentBookmarksCount(8)}
+                                className="h-8 px-2"
+                              >
+                                恢复默认
+                              </Button>
+                            </div>
+                            <input
+                              type="range"
+                              min={1}
+                              max={12}
+                              step={1}
+                              value={recentBookmarksCount}
+                              onChange={(e) => setRecentBookmarksCount(Number(e.target.value))}
+                              className="w-full accent-[rgb(var(--primary))]"
+                            />
+                          </div>
+                        )}
+
+                        <div className="text-xs text-fg/60">
+                          {recentBookmarksMode === 'dynamic'
+                            ? '提示：动态模式只显示一行，根据书签名称长度自动调整数量。'
+                            : '提示：固定模式显示指定数量，可能会换行显示。'}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </Section>
 

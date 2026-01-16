@@ -7,6 +7,7 @@ import { cn } from '../utils/cn'
 import { normalizeUrl } from '../utils/url'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
+import { Tooltip } from './ui/Tooltip'
 import { ArrowLeft, Folder, Loader2, MoreHorizontal } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useBookmarkOrder } from './bookmarks/useBookmarkOrder'
@@ -478,8 +479,17 @@ export function BookmarkGrid() {
           const y = e.clientY + 8
           setMenu({ open: true, x, y, item: b })
         }}
-        title={b.note ? `备注：${b.note}` : ''}
       >
+        <Tooltip
+          content={b.note ? (
+            <div className="space-y-1">
+              <div className="font-medium">{b.name}</div>
+              <div className="text-fg/70 text-xs">{b.note}</div>
+            </div>
+          ) : b.name}
+          position="top"
+          delay={600}
+        >
         <div className="grid place-items-center">
           <div
             className={cn(
@@ -548,6 +558,7 @@ export function BookmarkGrid() {
           </div>
           <div className="mt-1.5 text-[11px] text-fg/80 truncate w-16 text-center">{b.name}</div>
         </div>
+        </Tooltip>
       </DraggableBookmarkItem>
     )
   }

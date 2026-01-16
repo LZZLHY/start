@@ -7,7 +7,6 @@ import {
   Puzzle,
   Settings,
   UserCircle,
-  RefreshCw,
   Shield,
   CheckCircle2,
   XCircle,
@@ -24,6 +23,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
+import { Select } from '../../components/ui/Select'
 import { GlobalToaster } from '../../components/GlobalToaster'
 import { ServerStatus } from '../../components/ServerStatus'
 import { apiFetch } from '../../services/api'
@@ -62,6 +62,13 @@ type AdminExtension = {
 }
 
 // --- Components ---
+
+/** 用户排序选项 */
+const USER_SORT_OPTIONS = [
+  { value: 'role_asc', label: '权限优先 (Root > User)', icon: <ArrowUpDown className="w-4 h-4" /> },
+  { value: 'created_desc', label: '注册时间 (最新)', icon: <ArrowUpDown className="w-4 h-4" /> },
+  { value: 'created_asc', label: '注册时间 (最早)', icon: <ArrowUpDown className="w-4 h-4" /> },
+]
 
 function Badge({ children, variant = 'default' }: { children: React.ReactNode; variant?: 'default' | 'success' | 'warning' | 'error' | 'outline' }) {
   const styles = {
@@ -417,19 +424,9 @@ export function AdminPage() {
         {/* Main Content */}
         <main className="flex-1 min-w-0 relative flex flex-col h-full overflow-hidden bg-bg/50">
           {/* Top Bar */}
-          <header className="h-16 shrink-0 border-b border-glass-border/10 flex items-center justify-between px-6 backdrop-blur-sm bg-glass/5 z-10 sticky top-0">
+          <header className="h-16 shrink-0 border-b border-glass-border/10 flex items-center px-6 backdrop-blur-sm bg-glass/5 z-10 sticky top-0">
             <div className="text-sm text-fg/60">
                Dashboard / <span className="text-fg font-medium">{tab === 'users' ? 'User Management' : tab}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button variant="glass" size="sm" onClick={() => {
-                if (tab === 'users') loadUsers()
-                if (tab === 'extensions') loadExtensions()
-                if (tab === 'project') loadProjectSettings()
-              }} disabled={loading}>
-                <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} />
-                刷新数据
-              </Button>
             </div>
           </header>
 
@@ -462,21 +459,15 @@ export function AdminPage() {
                             }}
                           />
                         </div>
-                        <div className="relative">
-                           <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/40" />
-                           <select 
-                             className="h-9 pl-9 pr-8 rounded-xl bg-glass/10 border border-glass-border/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
-                             value={userSort}
-                             onChange={(e) => {
-                               setUserSort(e.target.value)
-                               loadUsers(1, userSearch, e.target.value)
-                             }}
-                           >
-                             <option value="role_asc">权限优先 (Root &gt; User)</option>
-                             <option value="created_desc">注册时间 (最新)</option>
-                             <option value="created_asc">注册时间 (最早)</option>
-                           </select>
-                        </div>
+                        <Select
+                          value={userSort}
+                          onChange={(val) => {
+                            setUserSort(val)
+                            loadUsers(1, userSearch, val)
+                          }}
+                          options={USER_SORT_OPTIONS}
+                          width="180px"
+                        />
                       </div>
                     }
                   />

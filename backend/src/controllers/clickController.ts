@@ -65,3 +65,78 @@ export async function getUserClickStats(req: AuthedRequest, res: Response) {
   
   return ok(res, { stats })
 }
+
+/**
+ * GET /api/bookmarks/recent
+ * 获取当前用户最近点击的书签
+ */
+export async function getRecentClickedBookmarks(req: AuthedRequest, res: Response) {
+  try {
+    const userId = req.auth?.userId
+    if (!userId) return fail(res, 401, '未登录')
+    
+    const limit = Math.min(Math.max(parseInt(String(req.query.limit)) || 8, 1), 20)
+    
+    // 获取最近点击的站点记录
+    const recentClicks = await prisma.clickStat.findMany({
+      where: { userId },
+      orderBy: { lastClickAt: 'desc' },
+      take: limit,
+      select: {
+        siteId: true,
+        lastClickAt: true,
+      },
+    })
+    
+    if (recentClicks.length === 0) {
+      return ok(res, { items: [] })
+    }
+    
+    // 获取用户的书签，匹配这些站点
+    const bookmarks = await prisma.bookmark.findMany({
+      where: {
+        userId,
+        type: 'LINK',
+        url: { not: null },
+      },
+      select: {
+        id: true,
+        name: true,
+        url: true,
+      },
+    })
+    
+    // 按 siteId 匹配书签
+    const siteIdToBookmark = new Map<string, typeof bookmarks[0]>()
+    const bookmarkSiteIds: { url: string; siteId: string | null }[] = []
+    
+    for (const bookmark of bookmarks) {
+      if (bookmark.url) {
+        const siteId = getSiteIdFromUrl(bookmark.url)
+        bookmarkSiteIds.push({ url: bookmark.url, siteId })
+        if (siteId && !siteIdToBookmark.has(siteId)) {
+          siteIdToBookmark.set(siteId, bookmark)
+        }
+      }
+    }
+    
+    // 按最近点击顺序返回书签
+    const items = recentClicks
+      .map(click => {
+        const bookmark = siteIdToBookmark.get(click.siteId)
+        if (!bookmark) return null
+        return {
+          id: bookmark.id,
+          name: bookmark.name,
+          url: bookmark.url,
+          lastClickAt: click.lastClickAt,
+        }
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null)
+    
+    return ok(res, { items })
+  } catch (error) {
+    console.error('[getRecentClickedBookmarks] Error:', error)
+    return fail(res, 500, '获取最近书签失败')
+  }
+}

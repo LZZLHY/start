@@ -19,13 +19,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
-  ChevronDown,
   FileText,
   Activity,
   AlertOctagon,
   ClipboardList,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
+import { Select } from '../../components/ui/Select'
 import { apiFetch, apiBase } from '../../services/api'
 import { cn } from '../../utils/cn'
 
@@ -105,85 +105,6 @@ function getLevelStyle(levelName?: string) {
     default:
       return 'bg-glass/10 text-fg/60'
   }
-}
-
-/** 自定义下拉选择器组件 */
-function CustomSelect<T extends string>({
-  value,
-  onChange,
-  options,
-  className,
-  width,
-}: {
-  value: T
-  onChange: (value: T) => void
-  options: { value: T; label: string; icon?: React.ReactNode; color?: string; tooltip?: string }[]
-  className?: string
-  width?: string
-}) {
-  const [open, setOpen] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const buttonRef = useRef<HTMLButtonElement>(null)
-  const currentOption = options.find(opt => opt.value === value) ?? options[0]
-
-  useEffect(() => {
-    if (!open) return
-    const handleClick = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    window.addEventListener('click', handleClick)
-    return () => window.removeEventListener('click', handleClick)
-  }, [open])
-
-  return (
-    <div ref={containerRef} className={cn('relative z-20', className)} style={{ width }}>
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => setOpen(!open)}
-        title={currentOption.tooltip}
-        className={cn(
-          'flex items-center gap-2 h-9 px-3 rounded-xl text-sm w-full',
-          'bg-glass/10 hover:bg-glass/20 transition-colors',
-          'border border-glass-border/20',
-          'focus:outline-none focus:ring-2 focus:ring-primary/20',
-        )}
-      >
-        {currentOption.icon}
-        <span className={cn('text-fg/80 flex-1 text-left', currentOption.color)}>{currentOption.label}</span>
-        <ChevronDown className={cn('w-3.5 h-3.5 text-fg/50 transition-transform flex-shrink-0', open && 'rotate-180')} />
-      </button>
-
-      {open && (
-        <div 
-          className="absolute top-full left-0 mt-1 z-[100] py-1 rounded-xl bg-bg/95 backdrop-blur-xl border border-glass-border/30 shadow-2xl"
-          style={{ minWidth: width || (buttonRef.current?.offsetWidth ?? 140) }}
-        >
-          {options.map(opt => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => {
-                onChange(opt.value)
-                setOpen(false)
-              }}
-              title={opt.tooltip}
-              className={cn(
-                'w-full flex items-center gap-2 px-3 py-2 text-sm text-left',
-                'hover:bg-glass/30 transition-colors',
-                opt.value === value && 'bg-primary/10',
-              )}
-            >
-              {opt.icon}
-              <span className={opt.color || (opt.value === value ? 'text-primary' : '')}>{opt.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
 }
 
 export function LogsTab({ token }: LogsTabProps) {
@@ -337,7 +258,7 @@ export function LogsTab({ token }: LogsTabProps) {
       <div className="glass-panel rounded-2xl p-4 flex flex-wrap items-center gap-3 relative z-10 mt-6 flex-shrink-0">
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-fg/40" />
-          <CustomSelect
+          <Select
             value={type}
             onChange={setType}
             options={LOG_TYPES}
@@ -345,7 +266,7 @@ export function LogsTab({ token }: LogsTabProps) {
           />
         </div>
 
-        <CustomSelect
+        <Select
           value={level}
           onChange={setLevel}
           options={LOG_LEVELS}

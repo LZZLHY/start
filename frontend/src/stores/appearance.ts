@@ -44,6 +44,12 @@ export type AppearanceState = {
   searchHistoryCount: number
   /** 搜索建议/历史每行高度（px），范围 32-56 */
   searchRowHeight: number
+  /** 最近打开书签显示数量，范围 1-12 */
+  recentBookmarksCount: number
+  /** 是否显示最近打开书签 */
+  recentBookmarksEnabled: boolean
+  /** 最近打开显示模式：fixed=固定数量，dynamic=动态一行 */
+  recentBookmarksMode: 'fixed' | 'dynamic'
 
   /** 书签页排序模式 */
   bookmarkDrawerSortMode: SortMode
@@ -74,6 +80,9 @@ export type AppearanceState = {
   setCustomSearchUrl: (url: string) => void
   setSearchHistoryCount: (count: number) => void
   setSearchRowHeight: (height: number) => void
+  setRecentBookmarksCount: (count: number) => void
+  setRecentBookmarksEnabled: (enabled: boolean) => void
+  setRecentBookmarksMode: (mode: 'fixed' | 'dynamic') => void
   setBookmarkDrawerSortMode: (mode: SortMode) => void
   setBookmarkSortLocked: (locked: boolean) => void
   setSearchGlowBorder: (enabled: boolean) => void
@@ -100,6 +109,9 @@ const DEFAULTS: Pick<
   | 'customSearchUrl'
   | 'searchHistoryCount'
   | 'searchRowHeight'
+  | 'recentBookmarksCount'
+  | 'recentBookmarksEnabled'
+  | 'recentBookmarksMode'
   | 'bookmarkDrawerSortMode'
   | 'bookmarkSortLocked'
   | 'searchGlowBorder'
@@ -122,6 +134,9 @@ const DEFAULTS: Pick<
   customSearchUrl: '',
   searchHistoryCount: 10,
   searchRowHeight: 40,
+  recentBookmarksCount: 8,
+  recentBookmarksEnabled: true,
+  recentBookmarksMode: 'dynamic',
   bookmarkDrawerSortMode: 'custom',
   bookmarkSortLocked: false,
   searchGlowBorder: false,
@@ -154,6 +169,10 @@ export const useAppearanceStore = create<AppearanceState>()(
         set({ searchHistoryCount: Math.max(0, Math.min(20, v)) }),
       setSearchRowHeight: (v) =>
         set({ searchRowHeight: Math.max(32, Math.min(56, v)) }),
+      setRecentBookmarksCount: (v) =>
+        set({ recentBookmarksCount: Math.max(1, Math.min(12, v)) }),
+      setRecentBookmarksEnabled: (recentBookmarksEnabled) => set({ recentBookmarksEnabled }),
+      setRecentBookmarksMode: (recentBookmarksMode) => set({ recentBookmarksMode }),
       setBookmarkDrawerSortMode: (bookmarkDrawerSortMode) => set({ bookmarkDrawerSortMode }),
       setBookmarkSortLocked: (bookmarkSortLocked) => set({ bookmarkSortLocked }),
       setSearchGlowBorder: (searchGlowBorder) => set({ searchGlowBorder }),
@@ -163,7 +182,7 @@ export const useAppearanceStore = create<AppearanceState>()(
     }),
     {
       name: 'start:appearance',
-      version: 9,
+      version: 10,
       partialize: (s) => ({
         mode: s.mode,
         accent: s.accent,
@@ -181,6 +200,9 @@ export const useAppearanceStore = create<AppearanceState>()(
         customSearchUrl: s.customSearchUrl,
         searchHistoryCount: s.searchHistoryCount,
         searchRowHeight: s.searchRowHeight,
+        recentBookmarksCount: s.recentBookmarksCount,
+        recentBookmarksEnabled: s.recentBookmarksEnabled,
+        recentBookmarksMode: s.recentBookmarksMode,
         bookmarkDrawerSortMode: s.bookmarkDrawerSortMode,
         bookmarkSortLocked: s.bookmarkSortLocked,
         searchGlowBorder: s.searchGlowBorder,
