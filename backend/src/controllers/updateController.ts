@@ -16,6 +16,7 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { requireAuth, requireRoot } from '../middleware/auth'
 import { createLogger } from '../services/logger'
+import { uptimeTracker } from '../services/uptimeTracker'
 import type { AuthedRequest } from '../types/auth'
 
 const execAsync = promisify(exec)
@@ -402,6 +403,9 @@ router.post('/restart', requireAuth, requireRoot, async (_req: AuthedRequest, re
     setTimeout(async () => {
       logger.info('执行重启')
       
+      // 保存运行时长数据
+      await uptimeTracker.shutdown()
+      
       const backendDir = path.join(ROOT_DIR, 'backend')
       
       if (process.platform === 'win32') {
@@ -463,7 +467,10 @@ router.post('/full', requireAuth, requireRoot, async (req: AuthedRequest, res: R
     if (needsRestart) {
       res.json({ ok: true, data: { message: '更新完成，服务即将重启' } })
       
-      setTimeout(() => {
+      setTimeout(async () => {
+        // 保存运行时长数据
+        await uptimeTracker.shutdown()
+        
         const backendDir = path.join(ROOT_DIR, 'backend')
         
         if (process.platform === 'win32') {
