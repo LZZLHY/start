@@ -42,21 +42,21 @@ configure_database() {
     echo ""
     
     # 数据库名称
-    read -p "数据库名称 (默认: tabn): " DB_NAME
+    read -r -p "数据库名称 (默认: tabn): " DB_NAME < /dev/tty
     DB_NAME=${DB_NAME:-tabn}
     
     # 数据库用户名
-    read -p "数据库用户名 (默认: tabn): " DB_USER
+    read -r -p "数据库用户名 (默认: tabn): " DB_USER < /dev/tty
     DB_USER=${DB_USER:-tabn}
     
     # 数据库密码
     while true; do
-        read -s -p "数据库密码 (至少8位): " DB_PASSWORD
+        read -r -s -p "数据库密码 (至少8位): " DB_PASSWORD < /dev/tty
         echo ""
         if [ ${#DB_PASSWORD} -lt 8 ]; then
             echo -e "${RED}❌ 密码长度至少8位，请重新输入${NC}"
         else
-            read -s -p "确认密码: " DB_PASSWORD_CONFIRM
+            read -r -s -p "确认密码: " DB_PASSWORD_CONFIRM < /dev/tty
             echo ""
             if [ "$DB_PASSWORD" != "$DB_PASSWORD_CONFIRM" ]; then
                 echo -e "${RED}❌ 两次密码不一致，请重新输入${NC}"
@@ -73,7 +73,7 @@ configure_database() {
     
     # JWT 密钥
     echo "JWT 密钥用于用户登录 token 签名，建议留空自动生成。"
-    read -p "JWT 密钥 (留空自动生成): " JWT_SECRET
+    read -r -p "JWT 密钥 (留空自动生成): " JWT_SECRET < /dev/tty
     
     if [ -z "$JWT_SECRET" ]; then
         JWT_SECRET=$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c 64)
@@ -89,7 +89,7 @@ configure_database() {
     echo "  JWT 密钥:   ${JWT_SECRET:0:8}..."
     echo ""
     
-    read -p "确认以上配置？(Y/n): " CONFIRM
+    read -r -p "确认以上配置？(Y/n): " CONFIRM < /dev/tty
     if [ "$CONFIRM" = "n" ] || [ "$CONFIRM" = "N" ]; then
         echo "已取消安装，请重新运行脚本。"
         exit 0

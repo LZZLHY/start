@@ -75,7 +75,7 @@ export function BookmarkDrawer({ open, onClose, swipeUpProgress = 0, isSwipeAnim
 
   // --- State ---
   const [allItems, setAllItems] = useState<Bookmark[]>([])
-  const [loading, setLoading] = useState(false)
+  const [, setLoading] = useState(false)
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null)
   const [folderModalOpen, setFolderModalOpen] = useState(false)
   const [folderOriginRect, setFolderOriginRect] = useState<DOMRect | null>(null)

@@ -139,36 +139,86 @@
 
 ---
 
+## Git 分支策略
+
+项目使用 **双分支工作流**，确保 GitHub 历史干净：
+
+| 分支 | 用途 | 推送到 GitHub |
+|------|------|---------------|
+| `dev` | 日常开发，保留所有小 commit | ❌ 不推送 |
+| `main` | 发布版本，只有版本号 commit | ✅ 推送 |
+
+### 日常开发流程
+
+```bash
+# 1. 切换到 dev 分支开发
+git checkout dev
+
+# 2. 随意提交小修改（本地保留）
+git add -A
+git commit -m "fix: 修复xxx问题"
+git commit -m "feat: 添加xxx功能"
+# ... 可以有多个 commit
+```
+
+### 发布新版本流程
+
+```bash
+# 1. 更新版本文件
+#    - 4 个 package.json 的 version 和 patchVersion
+#    - frontend/public/changelog.json
+#    - DEVLOG.md
+
+# 2. 在 dev 分支提交版本更新
+git add -A
+git commit -m "chore: bump version to x.x.x"
+
+# 3. 切换到 main 分支，squash merge
+git checkout main
+git merge --squash dev
+
+# 4. 提交（只有一个版本号 commit）
+git commit -m "x.x.x"
+
+# 5. 打 tag 并推送
+git tag vx.x.x
+git push origin main
+git push origin vx.x.x
+
+# 6. 切回 dev 继续开发
+git checkout dev
+```
+
+### 紧急补丁（同版本修复）
+
+```bash
+# 在 dev 分支修复并提交
+git checkout dev
+git commit -m "fix: 紧急修复xxx"
+
+# squash merge 到 main
+git checkout main
+git merge --squash dev
+git commit -m "x.x.x"
+
+# 更新 tag 并强制推送
+git tag -d vx.x.x
+git tag vx.x.x
+git push origin main
+git push origin vx.x.x --force
+
+git checkout dev
+```
+
+---
+
 ## Git 提交规范
 
 - **小提交标题简短而概括**，不要写太长
-- 示例：`fix: 修复登录问题`、`feat: 添加账户管理`、`v1.0.3`
+- 示例：`fix: 修复登录问题`、`feat: 添加账户管理`
 - 不要自动提交，等用户确认改动没问题后再提交
 - 不轻易推送 GitHub，用户会明确说明何时推送
-
-### 补丁版本提交流程
-
-补丁更新需要**两次提交**：
-
-1. **第一次提交**：代码修改
-   - 格式：`fix: 修复xxx问题`
-   - 内容：仅包含代码修改
-
-2. **更新版本文件**：
-   - 修改 4 个 `package.json` 的 `patchVersion`
-   - 更新 `DEVLOG.md` 添加记录
-
-3. **第二次提交**：版本更新
-   - 格式：`x.x.x`（如 `1.2.1`）
-   - 内容：仅包含版本文件修改
-
-4. **推送**：
-   ```bash
-   git tag -d vx.x.x           # 删除本地旧 tag
-   git tag vx.x.x              # 重新创建 tag
-   git push origin main
-   git push origin vx.x.x --force
-   ```
+- **main 分支的 commit message 只能是版本号**（如 `1.4.0`）
 
 ---
 

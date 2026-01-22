@@ -179,7 +179,7 @@ reinstall_tabn() {
     echo -e "${RED}警告: 重装将删除所有数据，包括数据库和用户设置！${NC}"
     echo -e "${RED}════════════════════════════════════════════════════${NC}"
     echo ""
-    read -p "确认要重装 TabN？(输入 YES 确认): " confirm
+    read -r -p "确认要重装 TabN？(输入 YES 确认): " confirm < /dev/tty
     
     if [ "$confirm" != "YES" ]; then
         echo "已取消重装。"
@@ -217,7 +217,8 @@ update_tabn() {
     stop_tabn_silent
     
     # 更新代码（不影响数据库和设置文件）
-    git pull
+    git fetch origin main
+    git reset --hard origin/main
     
     # 重新安装依赖
     npm install
@@ -237,7 +238,7 @@ uninstall_tabn() {
     echo -e "${RED}警告: 此操作将删除所有数据，包括数据库和用户设置！${NC}"
     echo -e "${RED}════════════════════════════════════════════════════${NC}"
     echo ""
-    read -p "确认要完全卸载 TabN？(输入 YES 确认): " confirm
+    read -r -p "确认要完全卸载 TabN？(输入 YES 确认): " confirm < /dev/tty
     
     if [ "$confirm" != "YES" ]; then
         echo "已取消卸载。"
@@ -431,7 +432,7 @@ change_db_password() {
     echo -e "${RED}警告: 修改密码后需要重启服务，且需要重新创建数据库容器！${NC}"
     echo ""
     
-    read -p "是否继续？(y/N): " confirm
+    read -r -p "是否继续？(y/N): " confirm < /dev/tty
     if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
         echo "已取消。"
         return
@@ -439,13 +440,13 @@ change_db_password() {
     
     # 输入新密码
     while true; do
-        read -s -p "请输入新密码 (至少8位): " new_pass
+        read -r -s -p "请输入新密码 (至少8位): " new_pass < /dev/tty
         echo ""
         if [ ${#new_pass} -lt 8 ]; then
             echo -e "${RED}密码长度至少8位${NC}"
             continue
         fi
-        read -s -p "确认新密码: " new_pass_confirm
+        read -r -s -p "确认新密码: " new_pass_confirm < /dev/tty
         echo ""
         if [ "$new_pass" != "$new_pass_confirm" ]; then
             echo -e "${RED}两次密码不一致${NC}"
@@ -497,7 +498,7 @@ reset_jwt_secret() {
     echo -e "${RED}警告: 重置后所有已登录用户需要重新登录！${NC}"
     echo ""
     
-    read -p "是否继续？(y/N): " confirm
+    read -r -p "是否继续？(y/N): " confirm < /dev/tty
     if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
         echo "已取消。"
         return
@@ -515,7 +516,7 @@ reset_jwt_secret() {
     echo "新密钥: ${NEW_SECRET:0:16}... (已隐藏)"
     echo ""
     
-    read -p "是否重启服务使其生效？(Y/n): " restart
+    read -r -p "是否重启服务使其生效？(Y/n): " restart < /dev/tty
     if [ "$restart" != "n" ] && [ "$restart" != "N" ]; then
         restart_tabn
     fi
@@ -530,7 +531,7 @@ show_logs() {
     echo "  2. 后端日志 (最近)"
     echo "  0. 返回"
     echo ""
-    read -p "请选择: " choice
+    read -r -p "请选择: " choice < /dev/tty
     
     case $choice in
         1)
@@ -599,7 +600,7 @@ pm2_management() {
     if ! command -v pm2 &> /dev/null; then
         echo -e "${YELLOW}PM2 未安装${NC}"
         echo ""
-        read -p "是否安装 PM2？(Y/n): " install_pm2
+        read -r -p "是否安装 PM2？(Y/n): " install_pm2 < /dev/tty
         if [ "$install_pm2" != "n" ] && [ "$install_pm2" != "N" ]; then
             echo -e "${YELLOW}正在安装 PM2...${NC}"
             npm install -g pm2
@@ -634,7 +635,7 @@ pm2_management() {
     echo -e "  ${GREEN}0.${NC} 返回"
     echo ""
     
-    read -p "请选择: " pm2_choice
+    read -r -p "请选择: " pm2_choice < /dev/tty
     
     case $pm2_choice in
         1) enable_pm2 ;;
@@ -720,7 +721,7 @@ main_not_installed() {
     while true; do
         show_header
         show_menu_not_installed
-        read -p "请输入选项 [0-2]: " choice
+        read -r -p "请输入选项 [0-2]: " choice < /dev/tty
         echo ""
         
         case $choice in
@@ -729,7 +730,7 @@ main_not_installed() {
                 # 安装完成后切换到已安装模式
                 if is_installed; then
                     echo ""
-                    read -p "按回车键进入管理面板..."
+                    read -r -p "按回车键进入管理面板..." < /dev/tty
                     main_installed
                     return
                 fi
@@ -739,7 +740,7 @@ main_not_installed() {
                 # 安装完成后切换到已安装模式
                 if is_installed; then
                     echo ""
-                    read -p "按回车键进入管理面板..."
+                    read -r -p "按回车键进入管理面板..." < /dev/tty
                     main_installed
                     return
                 fi
@@ -754,7 +755,7 @@ main_not_installed() {
         esac
         
         echo ""
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
     done
 }
 
@@ -763,7 +764,7 @@ main_installed() {
     while true; do
         show_header
         show_menu_installed
-        read -p "请输入选项 [0-13]: " choice
+        read -r -p "请输入选项 [0-13]: " choice < /dev/tty
         echo ""
         
         case $choice in
@@ -790,7 +791,7 @@ main_installed() {
         esac
         
         echo ""
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
     done
 }
 
