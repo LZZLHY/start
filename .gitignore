@@ -66,9 +66,8 @@ backend/storage/
 .start/
 
 # Developer notes (not for GitHub)
-
-#DEVLOG.md
-#DEVELOPER_NOTES.md
+DEVLOG.md
+DEVELOPER_NOTES.md
 
 # Word temp files
 ~$*.docx
